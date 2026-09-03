@@ -5,8 +5,10 @@ import userEvent from '@testing-library/user-event'
 import { transferableAbortController } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
+import { AppShell } from '../src/components/AppShell'
 import { CourseSelectionPage } from '../src/pages/CourseSelectionPage'
 import { EntryPage } from '../src/pages/EntryPage'
+import { ResultPage } from '../src/pages/ResultPage'
 import { SimulationPage } from '../src/pages/SimulationPage'
 import { TeacherUnavailablePage } from '../src/pages/TeacherUnavailablePage'
 
@@ -18,8 +20,11 @@ Object.defineProperty(globalThis, 'AbortController', {
 
 const serviceMocks = vi.hoisted(() => ({
   ensureAnonymousStudentSession: vi.fn(),
+  evaluateCaseStep: vi.fn(),
   getCurrentStudent: vi.fn(),
   getCurrentStudentCourse: vi.fn(),
+  getNextVisibleCaseStep: vi.fn(),
+  getSimulationCase: vi.fn(),
   resolvePublishedCaseForCourse: vi.fn(),
   updateCurrentStudentCourse: vi.fn(),
 }))
@@ -35,7 +40,13 @@ vi.mock('../src/services/student', () => ({
 }))
 
 vi.mock('../src/services/cases', () => ({
+  getNextVisibleCaseStep: serviceMocks.getNextVisibleCaseStep,
+  getSimulationCase: serviceMocks.getSimulationCase,
   resolvePublishedCaseForCourse: serviceMocks.resolvePublishedCaseForCourse,
+}))
+
+vi.mock('../src/services/simulation', () => ({
+  evaluateCaseStep: serviceMocks.evaluateCaseStep,
 }))
 
 const session = {
@@ -56,6 +67,52 @@ const nursingCase = {
   status: 'published',
 }
 
+const simulationCase = {
+  case: nursingCase,
+  patient: {
+    id: '30000000-0000-4000-8000-000000000001',
+    display_name: 'Paciente Teste',
+    age_years: 42,
+    sex_or_anatomy_context: 'Contexto fictício de teste.',
+    pronouns: null,
+  },
+  steps: [
+    {
+      id: '40000000-0000-4000-8000-000000000001',
+      case_id: nursingCase.id,
+      position: 1,
+      step_key: 'first-information',
+      step_type: 'information',
+      title: 'Primeira informação',
+      content: { body: 'Informação inicial.', observations: ['Primeira observação.'] },
+      options: [],
+    },
+    {
+      id: '40000000-0000-4000-8000-000000000002',
+      case_id: nursingCase.id,
+      position: 2,
+      step_key: 'decision',
+      step_type: 'decision',
+      title: 'Decisão de teste',
+      content: { body: 'O que você faz?', observations: [] },
+      options: [
+        { id: 'ideal-option', label: 'Escolha segura' },
+        { id: 'unsafe-option', label: 'Escolha arriscada' },
+      ],
+    },
+    {
+      id: '40000000-0000-4000-8000-000000000003',
+      case_id: nursingCase.id,
+      position: 3,
+      step_key: 'final-information',
+      step_type: 'information',
+      title: 'Continuidade',
+      content: { body: 'Encerramento do caso.', observations: [] },
+      options: [],
+    },
+  ],
+}
+
 function renderFlow(initialEntry = '/') {
   const router = createMemoryRouter(
     [
@@ -63,6 +120,7 @@ function renderFlow(initialEntry = '/') {
       { path: '/professor', element: <TeacherUnavailablePage /> },
       { path: '/curso', element: <CourseSelectionPage /> },
       { path: '/simulacao', element: <SimulationPage /> },
+      { path: '/resultado', element: <ResultPage /> },
     ],
     { initialEntries: [initialEntry] },
   )
@@ -85,6 +143,26 @@ beforeEach(() => {
     ok: true,
     case: null,
     requestedCaseAccepted: false,
+  })
+  serviceMocks.getSimulationCase.mockResolvedValue({
+    ok: true,
+    simulationCase: { ...simulationCase, steps: [simulationCase.steps[0]] },
+  })
+  serviceMocks.getNextVisibleCaseStep.mockImplementation(
+    async (_caseId: string, currentPosition: number) => ({
+      ok: true,
+      step:
+        simulationCase.steps.find((step) => step.position > currentPosition) ?? null,
+    }),
+  )
+  serviceMocks.evaluateCaseStep.mockResolvedValue({
+    ok: true,
+    evaluation: {
+      classification: 'ideal',
+      scoreDelta: 2,
+      feedback: 'Boa escolha.',
+      consequence: 'A pessoa permanece segura.',
+    },
   })
 })
 
@@ -289,6 +367,7 @@ describe('handoff da simulação', () => {
         'Nenhum caso publicado está disponível para Análises Clínicas neste momento.',
       ),
     ).toBeTruthy()
+    expect(serviceMocks.getSimulationCase).not.toHaveBeenCalled()
   })
 
   it('substitui case manipulado pelo caso publicado do curso', async () => {
@@ -311,6 +390,156 @@ describe('handoff da simulação', () => {
     )
     await waitFor(() =>
       expect(router.state.location.search).toBe(`?case=${nursingCase.id}`),
+    )
+  })
+})
+
+describe('fatia vertical da simulação', () => {
+  beforeEach(() => {
+    serviceMocks.getCurrentStudent.mockResolvedValue({
+      ok: true,
+      student: { userId: session.user.id, role: 'student', course: 'nursing' },
+    })
+    serviceMocks.resolvePublishedCaseForCourse.mockResolvedValue({
+      ok: true,
+      case: nursingCase,
+      requestedCaseAccepted: true,
+    })
+  })
+
+  it('percorre etapas ordenadas, avalia uma escolha e envia o resumo ao resultado', async () => {
+    const user = userEvent.setup()
+    const router = renderFlow(`/simulacao?case=${nursingCase.id}`)
+
+    expect(await screen.findByText('Paciente Teste')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Iniciar caso' }))
+
+    expect(screen.getByRole('heading', { name: 'Primeira informação' })).toBeTruthy()
+    expect(screen.getByText('Etapa 1')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    expect(await screen.findByRole('heading', { name: 'Decisão de teste' })).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Escolha segura' }))
+
+    expect(serviceMocks.evaluateCaseStep).toHaveBeenCalledWith(
+      nursingCase.id,
+      simulationCase.steps[1].id,
+      'ideal-option',
+    )
+    expect(await screen.findByText('Escolha ideal')).toBeTruthy()
+    expect(screen.getByText('Boa escolha.')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    expect(await screen.findByRole('heading', { name: 'Continuidade' })).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/resultado'))
+    expect(screen.getByRole('heading', { name: 'Resultado' })).toBeTruthy()
+    expect(screen.getByText('2')).toBeTruthy()
+    expect(screen.getByText('1')).toBeTruthy()
+  })
+
+  it('mostra feedback não ideal devolvido pelo servidor', async () => {
+    serviceMocks.evaluateCaseStep.mockResolvedValue({
+      ok: true,
+      evaluation: {
+        classification: 'unsafe',
+        scoreDelta: -1,
+        feedback: 'Essa escolha cria um risco evitável.',
+        consequence: 'A ação é interrompida.',
+      },
+    })
+    const user = userEvent.setup()
+    const router = renderFlow(`/simulacao?case=${nursingCase.id}`)
+
+    await user.click(await screen.findByRole('button', { name: 'Iniciar caso' }))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+    await user.click(await screen.findByRole('button', { name: 'Escolha arriscada' }))
+
+    expect(await screen.findByText('Escolha insegura')).toBeTruthy()
+    expect(screen.getByText('Essa escolha cria um risco evitável.')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+    await user.click(await screen.findByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/resultado'))
+    expect(screen.getByText('-1')).toBeTruthy()
+  })
+
+  it('permite tentar novamente quando a RPC falha', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    serviceMocks.evaluateCaseStep
+      .mockResolvedValueOnce({
+        ok: false,
+        message: 'Não foi possível avaliar sua escolha. Tente novamente.',
+        cause: new Error('network'),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        evaluation: {
+          classification: 'acceptable',
+          scoreDelta: 1,
+          feedback: 'Escolha aceitável após nova tentativa.',
+          consequence: null,
+        },
+      })
+    const user = userEvent.setup()
+    renderFlow(`/simulacao?case=${nursingCase.id}`)
+
+    await user.click(await screen.findByRole('button', { name: 'Iniciar caso' }))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+    await user.click(await screen.findByRole('button', { name: 'Escolha segura' }))
+    await user.click(
+      await screen.findByRole('button', { name: 'Tentar avaliar novamente' }),
+    )
+
+    expect(await screen.findByText('Escolha aceitável após nova tentativa.')).toBeTruthy()
+    expect(serviceMocks.evaluateCaseStep).toHaveBeenCalledTimes(2)
+    expect(consoleError).toHaveBeenCalledWith(
+      'Falha ao avaliar escolha da simulação.',
+      expect.any(Error),
+    )
+    consoleError.mockRestore()
+  })
+})
+
+describe('resultado e cabeçalho', () => {
+  it('trata acesso direto ao resultado sem estado de navegação', () => {
+    renderFlow('/resultado')
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'Nenhum resultado de simulação disponível',
+      }),
+    ).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Voltar à simulação' })).toBeTruthy()
+  })
+
+  it('oculta a navegação de desenvolvimento apenas na entrada', async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: '*',
+          element: (
+            <AppShell>
+              <p>Conteúdo</p>
+            </AppShell>
+          ),
+        },
+      ],
+      { initialEntries: ['/'] },
+    )
+    render(<RouterProvider router={router} />)
+
+    expect(screen.queryByRole('navigation', { name: 'Navegação principal' })).toBeNull()
+    const logo = screen.getByRole('link', { name: 'OSLER — ir para a entrada' }).querySelector('img')
+    expect(logo?.className).toBe('brand-logo')
+    expect(logo?.getAttribute('style')).toBeNull()
+
+    await router.navigate('/simulacao')
+    await waitFor(() =>
+      expect(
+        screen.getByRole('navigation', { name: 'Navegação principal' }),
+      ).toBeTruthy(),
     )
   })
 })
