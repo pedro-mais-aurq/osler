@@ -5,6 +5,7 @@ import { EntryPage } from '../pages/EntryPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { ResultPage } from '../pages/ResultPage'
 import { SimulationPage } from '../pages/SimulationPage'
+import { TeacherUnavailablePage } from '../pages/TeacherUnavailablePage'
 
 export const router = createBrowserRouter(
   [
@@ -13,6 +14,7 @@ export const router = createBrowserRouter(
       element: <App />,
       children: [
         { index: true, element: <EntryPage /> },
+        { path: 'professor', element: <TeacherUnavailablePage /> },
         { path: 'curso', element: <CourseSelectionPage /> },
         { path: 'simulacao', element: <SimulationPage /> },
         { path: 'resultado', element: <ResultPage /> },

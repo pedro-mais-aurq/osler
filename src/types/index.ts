@@ -1,6 +1,9 @@
-export type AppRoute = '/' | '/curso' | '/simulacao' | '/resultado'
+export type AppRoute = '/' | '/professor' | '/curso' | '/simulacao' | '/resultado'
 export type {
+  AppRole,
   CaseStatus,
-  ClinicalCaseCatalogRow,
+  ClinicalCaseHandoff,
   CourseCode,
+  StudentCourse,
+  StudentIdentity,
 } from './database'

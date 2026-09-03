@@ -1,6 +1,6 @@
 # OSLER — MVP
 
-Plataforma educacional de simulação clínica interprofissional. Esta versão contém a fundação do frontend e o modelo mínimo de dados da Parte 2/10.
+Plataforma educacional de simulação clínica interprofissional. Esta versão contém a entrada e o onboarding retomável da Parte 3/10, sobre a fundação e o modelo mínimo de dados das Partes 1 e 2.
 
 ## Executar localmente
 
@@ -16,11 +16,23 @@ Use somente uma chave publishable/anon no cliente. Nunca exponha `service_role` 
 
 ## Verificações do frontend
 
+- `npm test`
 - `npm run typecheck`
 - `npm run build`
 - `npm run dev`
 
 O build de produção usa `/osler/` como base; o desenvolvimento local continua usando `/`.
+
+## Fluxo da Parte 3
+
+- `Sou aluno` reutiliza a sessão Supabase existente ou cria uma identidade com `signInAnonymously()`.
+- O trigger versionado da Parte 2 cria `profiles` e `students`; o frontend não insere essas linhas.
+- `/curso` persiste `nursing` ou `clinical_analysis` em `students.course`.
+- `/simulacao` valida sessão, papel e curso, aceita somente um `?case=<uuid>` publicado do mesmo curso e, se necessário, escolhe deterministicamente o primeiro caso compatível.
+- Sem caso publicado, a aplicação mostra um estado vazio e não publica a fixture técnica.
+- `/professor` é somente um placeholder e não inicia autenticação.
+
+A sessão é persistida pelo SDK do Supabase e o curso pelo banco; por isso ambos são retomados após refresh enquanto o armazenamento do navegador for preservado.
 
 ## Supabase
 
@@ -32,9 +44,11 @@ O schema versionado está em `supabase/migrations` e a fixture técnica está em
 
 Para um projeto remoto, use `npx supabase@2.116.0 link --project-ref <project-ref>`, revise com `npx supabase@2.116.0 db push --dry-run` e aplique com `npx supabase@2.116.0 db push`. Migrations não são executadas pelo deploy do frontend.
 
-Depois de aplicar o schema, gere os tipos completos com `npx supabase@2.116.0 gen types typescript --local > src/types/database.generated.ts`. O arquivo `src/types/database.ts` contém apenas a superfície mínima temporária usada pela leitura de catálogo.
+Depois de aplicar o schema, gere os tipos completos com `npx supabase@2.116.0 gen types typescript --local > src/types/database.generated.ts`. O arquivo `src/types/database.ts` contém apenas a superfície mínima temporária necessária para a P3; não é um arquivo falsamente apresentado como output da CLI.
 
-A Parte 2 não implementa login nem autenticação anônima. O trigger de identidade apenas prepara novos usuários como estudantes; a criação da identidade e a escolha do curso pertencem à Parte 3.
+O ambiente local já está configurado com `enable_anonymous_sign_ins = true`. Pendência operacional do ambiente hospedado: **Habilitar anonymous sign-ins no projeto Supabase hospedado.** Faça isso em Auth no projeto OSLER correto; não use uma `service_role` no frontend.
+
+O seed permanece técnico, com o caso `Caso estrutural de desenvolvimento` em `draft` e sem conteúdo clínico validado. A Parte 3 não cria `simulation_sessions`, `simulation_actions`, casos clínicos, truth models ou regras.
 
 ## GitHub Pages
 

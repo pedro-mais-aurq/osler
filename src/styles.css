@@ -27,6 +27,10 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+button {
+  font: inherit;
+}
+
 .app-shell {
   display: grid;
   min-height: 100vh;
@@ -123,10 +127,12 @@ h1 {
   align-items: center;
   justify-content: center;
   min-height: 2.85rem;
+  border: 0;
   border-radius: 0.65rem;
   padding: 0.75rem 1rem;
   font-weight: 700;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .page-card > .primary-action {
@@ -156,6 +162,134 @@ h1 {
   outline: 3px solid rgb(36 107 100 / 15%);
 }
 
+.primary-action:disabled,
+.secondary-action:disabled,
+.course-option:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.status-message,
+.empty-state,
+.case-handoff {
+  margin-top: 1.5rem;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  background: #eef5f2;
+}
+
+.page-card .status-message p,
+.page-card .empty-state p,
+.page-card .case-handoff p {
+  margin-top: 0;
+}
+
+.status-error {
+  border: 1px solid #d7a6a1;
+  color: #762d27;
+  background: #fff3f1;
+}
+
+.text-action {
+  border: 0;
+  padding: 0;
+  color: #18564f;
+  font-weight: 750;
+  text-decoration: underline;
+  background: transparent;
+  cursor: pointer;
+}
+
+.text-action:focus-visible {
+  border-radius: 0.2rem;
+  outline: 3px solid rgb(36 107 100 / 25%);
+}
+
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.course-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+
+.course-option {
+  display: grid;
+  gap: 0.35rem;
+  min-height: 7rem;
+  border: 1px solid #aebfba;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  color: #173b3a;
+  text-align: left;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.course-option span {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.course-option small {
+  color: #5e6d70;
+}
+
+.course-option:hover,
+.course-option:focus-visible,
+.course-option.selected {
+  border-color: #246b64;
+  background: #eef5f2;
+  outline: 3px solid rgb(36 107 100 / 15%);
+}
+
+.case-handoff h2 {
+  margin: 0.35rem 0 0;
+  color: #173b3a;
+  font-size: 1.5rem;
+}
+
+.status-label {
+  color: #3f7773;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.case-details {
+  display: grid;
+  gap: 1rem;
+  margin: 1.25rem 0 0;
+}
+
+.case-details div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.case-details dt {
+  color: #315e5a;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.case-details dd {
+  margin: 0;
+  color: #4b5a5e;
+  line-height: 1.55;
+}
+
+.scope-note {
+  margin-top: 1.25rem !important;
+  font-weight: 700;
+}
+
 .app-footer {
   padding: 1rem;
   color: #5e6d70;
@@ -180,5 +314,14 @@ h1 {
 
   .action-row > a {
     width: 100%;
+  }
+
+  .action-row > button,
+  .course-options {
+    width: 100%;
+  }
+
+  .course-options {
+    grid-template-columns: 1fr;
   }
 }
