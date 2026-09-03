@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from 'react'
 import { NavLink } from 'react-router-dom'
+import Logo from '../assets/osler_logo.svg'
 
 const developmentRoutes = [
   { to: '/', label: 'Entrada', end: true },
@@ -12,7 +13,7 @@ export function AppShell({ children }: PropsWithChildren) {
     <div className="app-shell">
       <header className="app-header">
         <NavLink className="brand" to="/" aria-label="OSLER — ir para a entrada">
-          OSLER
+          <img src = {Logo} style={{ width: '150px', height: 'auto' }}></img>
         </NavLink>
 
         <nav className="development-nav" aria-label="Navegação principal">

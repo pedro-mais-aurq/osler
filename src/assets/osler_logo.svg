@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <g
+     id="layer1">
+    <path
+       id="rect1"
+       style="fill:none;stroke:#182a35;stroke-width:1.41733;stroke-linecap:round;stroke-linejoin:round"
+       d="m 80.719288,150.03895 5.032072,-0.0827 V 165.5039 H 61.206482 Z" />
+    <path
+       d="m 92.568587,104.16728 q 7.42266,5.97536 5.68089,17.59817 -1.72143,11.63918 -11.102086,24.6883 -6.142822,8.54508 -13.047827,13.81842 -6.905017,5.27333 -13.015602,6.00279 -6.120523,0.78788 -10.594447,-2.81366 -4.534943,-3.6507 -5.39067,-10.32043 -0.855742,-6.66973 2.286612,-15.10497 3.162686,-8.41887 8.94238,-16.45882 6.263866,-8.71345 13.229888,-13.93767 6.966007,-5.22423 13.026008,-5.92796 6.059984,-0.70374 9.984854,2.45583 z m -6.113052,8.36968 q -5.389056,-4.33828 -12.797422,-0.86568 -7.418287,3.53107 -13.924227,12.58126 -6.626982,9.21858 -7.76192,17.67493 -1.165186,8.49846 4.589921,13.13141 3.640147,2.93038 8.19072,2.53998 4.540644,-0.33195 9.565619,-4.06186 5.015052,-3.67146 9.402781,-9.77509 6.2336,-8.67134 7.85464,-17.26801 1.61112,-8.53818 -5.120112,-13.95694 z"
+       id="text1"
+       style="font-size:70.5556px;font-family:Arial;-inkscape-font-specification:Arial;stroke-width:0.213414;stroke-linecap:round;stroke-linejoin:round;fill:#182a35;fill-opacity:1"
+       aria-label="O" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:41.3106px;font-family:'Haas Grot Text Trial';-inkscape-font-specification:'Haas Grot Text Trial';writing-mode:lr-tb;direction:ltr;fill:#000000;stroke-width:0.1171;stroke-linecap:round;stroke-linejoin:round"
+       x="71.791039"
+       y="197.99428"
+       id="text2"
+       transform="matrix(1.2124505,0.00817439,-0.00319776,0.82475437,0,0)"><tspan
+         id="tspan1"
+         style="font-style:normal;font-variant:normal;font-weight:900;font-stretch:normal;font-family:'Bodoni Moda';-inkscape-font-specification:'Bodoni Moda Heavy';fill:#182a35;fill-opacity:1;stroke-width:0.1171"
+         x="71.791039"
+         y="197.99428">sler</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.6841px;line-height:0.5;font-family:'Franklin Gothic Medium';-inkscape-font-specification:'Franklin Gothic Medium, ';letter-spacing:1.51077px;writing-mode:lr-tb;direction:ltr;fill:#e9e0d1;fill-opacity:1;stroke-width:0.0331203;stroke-linecap:round;stroke-linejoin:round"
+       x="83.383316"
+       y="160.15454"
+       id="text3"
+       transform="scale(1.1975728,0.83502231)"><tspan
+         id="tspan2"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:0.5;font-family:'Bodoni Moda';-inkscape-font-specification:'Bodoni Moda';letter-spacing:1.51077px;fill:#55706b;fill-opacity:1;stroke-width:0.0331203"
+         x="83.383316"
+         y="160.15454">garotos da</tspan></text>
+    <rect
+       style="fill:#182a35;fill-opacity:1;stroke:none;stroke-width:0.929554;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       id="rect2"
+       width="7.3792953"
+       height="2.4838836"
+       x="78.568474"
+       y="149.99129" />
+    <rect
+       style="fill:#182a35;fill-opacity:1;stroke:none;stroke-width:3.09802;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       id="rect3"
+       width="2.7478347"
+       height="0.69569886"
+       x="80.739563"
+       y="155.75548" />
+    <rect
+       style="fill:#182a35;fill-opacity:1;stroke:none;stroke-width:2.84556;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       id="rect3-8"
+       width="2.630929"
+       height="0.61301744"
+       x="80.756371"
+       y="-159.72173"
+       transform="scale(1,-1)" />
+    <rect
+       style="fill:#182a35;fill-opacity:1;stroke:none;stroke-width:2.87701;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       id="rect3-8-1"
+       width="2.6893699"
+       height="0.61301744"
+       x="80.734612"
+       y="162.04192" />
+  </g>
+</svg>
