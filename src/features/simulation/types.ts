@@ -27,6 +27,7 @@ export interface SimulationPatient {
   ageYears: number | null
   sexOrAnatomyContext: string | null
   pronouns: string | null
+  visualRef: string | null
 }
 
 export interface StepOption {

@@ -1,0 +1,740 @@
+.simulation-mode .app-main {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  padding: clamp(1rem, 2.6vw, 2rem);
+  background:
+    radial-gradient(circle at 8% 18%, rgb(233 224 209 / 76%) 0 7rem, transparent 7.1rem),
+    radial-gradient(circle at 94% 82%, rgb(85 112 107 / 12%) 0 11rem, transparent 11.1rem),
+    linear-gradient(155deg, #dfe7e1 0%, #edf0e9 52%, #d9e1dc 100%);
+}
+
+.simulation-mode .app-main::before {
+  position: absolute;
+  inset: auto 0 0;
+  height: 18%;
+  border-top: 1px solid rgb(24 42 53 / 12%);
+  background: rgb(85 112 107 / 9%);
+  content: "";
+}
+
+.clinical-simulation-view {
+  --state-accent: var(--osler-sage);
+  --state-soft: #e6eeea;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.75fr);
+  gap: clamp(1.25rem, 3vw, 3.25rem);
+  width: min(100%, 1220px);
+  margin: 0 auto;
+  align-items: start;
+}
+
+.clinical-simulation-view.presentation-warning {
+  --state-accent: #9b6a24;
+  --state-soft: #f5ead4;
+}
+
+.clinical-simulation-view.presentation-critical {
+  --state-accent: #984f48;
+  --state-soft: #f4e2df;
+}
+
+.clinical-simulation-view.presentation-recovery {
+  --state-accent: #39715e;
+  --state-soft: #dfeee6;
+}
+
+.clinical-room-object {
+  position: absolute;
+  z-index: -1;
+  border: 1px solid rgb(24 42 53 / 11%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.clinical-room-object-left {
+  top: 1.5rem;
+  left: -4rem;
+  width: 7.5rem;
+  height: 7.5rem;
+  border-radius: 50%;
+  background: rgb(248 245 237 / 55%);
+}
+
+.clinical-room-object-right {
+  right: -5rem;
+  bottom: 2rem;
+  width: 10rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: rgb(85 112 107 / 10%);
+  transform: rotate(-8deg);
+}
+
+.patient-panel {
+  --patient-accent: var(--osler-sage);
+  --patient-soft: #e6eeea;
+  position: relative;
+  min-width: 0;
+  border: 1px solid rgb(24 42 53 / 17%);
+  border-radius: 1.25rem 1.25rem 0.8rem 0.8rem;
+  padding: 0.75rem;
+  background: rgb(248 245 237 / 72%);
+  box-shadow: 0 1.25rem 2.8rem rgb(24 42 53 / 12%);
+  transform: rotate(-0.45deg);
+  transition:
+    border-color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.patient-panel.patient-state-warning {
+  --patient-accent: #9b6a24;
+  --patient-soft: #f5ead4;
+}
+
+.patient-panel.patient-state-critical {
+  --patient-accent: #984f48;
+  --patient-soft: #f4e2df;
+}
+
+.patient-panel.patient-state-recovery {
+  --patient-accent: #39715e;
+  --patient-soft: #dfeee6;
+}
+
+.patient-panel::after {
+  position: absolute;
+  inset: 0.75rem;
+  border: 1px solid var(--patient-accent);
+  border-radius: 0.85rem;
+  content: "";
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+.patient-panel-label {
+  position: absolute;
+  z-index: 2;
+  top: 1.35rem;
+  left: -0.45rem;
+  border-radius: 0.2rem 0.45rem 0.45rem 0.2rem;
+  padding: 0.38rem 0.85rem 0.38rem 1rem;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: var(--osler-ink);
+  box-shadow: 0 0.4rem 0.7rem rgb(24 42 53 / 16%);
+}
+
+.patient-portrait-frame {
+  position: relative;
+  display: grid;
+  min-height: 280px;
+  height: min(45vh, 390px);
+  overflow: hidden;
+  border-radius: 0.85rem 0.85rem 0.3rem 0.3rem;
+  background: var(--patient-soft);
+  transition: background 200ms ease;
+}
+
+.patient-room-line {
+  position: absolute;
+  right: 9%;
+  bottom: 10%;
+  left: 9%;
+  height: 1px;
+  background: rgb(24 42 53 / 18%);
+}
+
+.patient-portrait {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.patient-identity {
+  position: relative;
+  z-index: 1;
+  padding: 1.05rem 0.75rem 0.7rem;
+}
+
+.patient-kicker,
+.clipboard-kicker,
+.sheet-label {
+  margin: 0;
+  color: var(--osler-sage);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.patient-identity h2,
+.clipboard-patient-summary h2 {
+  margin: 0.28rem 0 0;
+  color: var(--osler-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  line-height: 1.1;
+}
+
+.patient-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 1rem;
+  margin: 1rem 0 0;
+}
+
+.patient-facts div {
+  min-width: 0;
+}
+
+.patient-facts dt {
+  color: var(--osler-sage);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.patient-facts dd {
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
+  color: var(--osler-ink);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.patient-facts-empty {
+  margin: 0.8rem 0 0;
+  color: var(--osler-muted);
+  font-size: 0.9rem;
+}
+
+.clinical-clipboard {
+  position: relative;
+  min-width: 0;
+  border: 1px solid rgb(24 42 53 / 32%);
+  border-radius: 1.15rem;
+  padding: clamp(0.6rem, 1.4vw, 0.9rem);
+  background: #6b7d76;
+  box-shadow:
+    0 1.75rem 3.8rem rgb(24 42 53 / 20%),
+    inset 0 1px rgb(255 255 255 / 28%);
+  transform: rotate(0.25deg);
+  transition:
+    background 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.clipboard-clip {
+  position: absolute;
+  z-index: 3;
+  top: -0.55rem;
+  left: 50%;
+  width: clamp(7rem, 22%, 10rem);
+  height: 2rem;
+  border: 1px solid rgb(24 42 53 / 28%);
+  border-radius: 0.65rem 0.65rem 0.3rem 0.3rem;
+  background: linear-gradient(#d8ded9, #9daaa4);
+  box-shadow: 0 0.25rem 0.45rem rgb(24 42 53 / 20%);
+  transform: translateX(-50%);
+}
+
+.clipboard-clip span {
+  position: absolute;
+  top: 0.42rem;
+  right: 18%;
+  left: 18%;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: rgb(24 42 53 / 24%);
+}
+
+.clipboard-paper {
+  position: relative;
+  min-height: 29rem;
+  border: 1px solid rgb(24 42 53 / 17%);
+  border-radius: 0.55rem;
+  padding: clamp(1.35rem, 3.2vw, 2.5rem);
+  color: var(--osler-ink);
+  background:
+    linear-gradient(90deg, transparent 0 2.7rem, rgb(152 79 72 / 14%) 2.7rem 2.75rem, transparent 2.75rem),
+    repeating-linear-gradient(0deg, transparent 0 2rem, rgb(85 112 107 / 8%) 2rem 2.05rem),
+    var(--osler-surface);
+  box-shadow: inset 0 0 2.8rem rgb(83 71 55 / 7%);
+}
+
+.clipboard-paper::before,
+.clipboard-paper::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0.45rem -0.25rem -0.3rem 0.25rem;
+  border: 1px solid rgb(24 42 53 / 12%);
+  border-radius: 0.45rem;
+  background: #eee7da;
+  content: "";
+  transform: rotate(-0.4deg);
+}
+
+.clipboard-paper::after {
+  inset: 0.2rem 0.2rem -0.48rem -0.18rem;
+  background: #ded7ca;
+  transform: rotate(0.55deg);
+}
+
+.clipboard-header {
+  padding: 0.25rem 0 1rem;
+  border-bottom: 2px solid rgb(24 42 53 / 14%);
+}
+
+.clipboard-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+  color: var(--osler-sage);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.clipboard-kicker {
+  margin-bottom: 0.35rem;
+}
+
+.clipboard-header h1 {
+  max-width: 22ch;
+  color: var(--osler-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.7rem, 3.4vw, 2.7rem);
+  line-height: 1.04;
+}
+
+.presentation-state-badge {
+  --badge-accent: var(--osler-sage);
+  --badge-soft: #e6eeea;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  border: 1px solid var(--badge-accent);
+  border-radius: 999px;
+  padding: 0.32rem 0.65rem;
+  color: var(--osler-ink);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  background: var(--badge-soft);
+}
+
+.presentation-state-badge.state-warning {
+  --badge-accent: #9b6a24;
+  --badge-soft: #f5ead4;
+}
+
+.presentation-state-badge.state-critical {
+  --badge-accent: #984f48;
+  --badge-soft: #f4e2df;
+}
+
+.presentation-state-badge.state-recovery {
+  --badge-accent: #39715e;
+  --badge-soft: #dfeee6;
+}
+
+.state-marker {
+  width: 0.55rem;
+  height: 0.55rem;
+  border: 2px solid var(--badge-accent);
+  border-radius: 50%;
+  background: #fff;
+}
+
+.workspace-tabs {
+  margin-top: 1rem;
+}
+
+.workspace-tab-list {
+  display: flex;
+  gap: 0.2rem;
+  border-bottom: 1px solid rgb(24 42 53 / 18%);
+  padding-left: 0.35rem;
+}
+
+.workspace-tab {
+  position: relative;
+  top: 1px;
+  min-height: 2.5rem;
+  border: 1px solid rgb(24 42 53 / 18%);
+  border-bottom-color: transparent;
+  border-radius: 0.55rem 0.55rem 0 0;
+  padding: 0.55rem 1rem;
+  color: var(--osler-sage);
+  font-weight: 800;
+  background: #dfded4;
+  cursor: pointer;
+}
+
+.workspace-tab[aria-selected="true"] {
+  z-index: 1;
+  color: var(--osler-ink);
+  background: #f8f5ed;
+}
+
+.workspace-tab:focus-visible,
+.decision-option:focus-visible,
+.clinical-action-row .primary-action:focus-visible {
+  outline: 3px solid rgb(24 42 53 / 28%);
+  outline-offset: 3px;
+}
+
+.workspace-tab-panel {
+  min-height: 4.75rem;
+  padding: 0.9rem 0.25rem 0.55rem;
+  animation: clinical-panel-in 180ms ease-out;
+}
+
+.workspace-tab-panel:focus-visible {
+  border-radius: 0.25rem;
+  outline: 3px solid rgb(24 42 53 / 20%);
+  outline-offset: 2px;
+}
+
+.clipboard-context > p,
+.learning-note > p:last-child,
+.clipboard-patient-summary > p,
+.case-start-sheet > p,
+.clinical-step-body > p,
+.evaluation-feedback > p,
+.clinical-error-note > p,
+.clinical-status-message {
+  max-width: 67ch;
+  margin: 0.65rem 0 0;
+  color: #394b52;
+  line-height: 1.58;
+}
+
+.learning-note {
+  margin-top: 0.8rem;
+  border-left: 3px solid var(--state-accent);
+  padding-left: 0.85rem;
+}
+
+.clipboard-patient-summary .patient-facts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.clinical-action-sheet {
+  position: relative;
+  margin-top: 0.6rem;
+  border: 1px solid rgb(24 42 53 / 17%);
+  border-radius: 0.35rem;
+  padding: clamp(1.15rem, 2.6vw, 2rem);
+  background: rgb(255 253 247 / 90%);
+  box-shadow: 0 0.65rem 1.5rem rgb(24 42 53 / 9%);
+}
+
+.clinical-action-sheet::before {
+  position: absolute;
+  top: -0.35rem;
+  right: 1.1rem;
+  width: 3.4rem;
+  height: 0.85rem;
+  background: rgb(233 224 209 / 85%);
+  content: "";
+  transform: rotate(-2deg);
+}
+
+.clinical-step-body h2,
+.case-start-sheet h2 {
+  margin: 0.35rem 0 0;
+  color: var(--osler-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.45rem, 3vw, 2.05rem);
+  line-height: 1.14;
+}
+
+.clinical-observations {
+  margin-top: 1.25rem;
+  border-top: 1px dashed rgb(24 42 53 / 25%);
+  padding-top: 1rem;
+}
+
+.clinical-observations .observation-list {
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+  color: #394b52;
+}
+
+.decision-prompt {
+  margin-top: 1.45rem;
+  border-top: 1px dashed rgb(24 42 53 / 25%);
+  padding-top: 1rem;
+}
+
+.clinical-action-sheet .decision-options {
+  gap: 0.65rem;
+  margin-top: 0.7rem;
+}
+
+.clinical-action-sheet .decision-option {
+  position: relative;
+  border: 1px solid #aab4aa;
+  border-left: 0.35rem solid var(--osler-sage);
+  border-radius: 0.25rem 0.55rem 0.55rem 0.25rem;
+  padding: 0.85rem 1rem;
+  color: var(--osler-ink);
+  background: #fffdf7;
+  box-shadow: 0 0.25rem 0.55rem rgb(24 42 53 / 7%);
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    transform 180ms ease;
+}
+
+.clinical-action-sheet .decision-option:hover:not(:disabled),
+.clinical-action-sheet .decision-option.selected {
+  border-color: var(--state-accent);
+  background: var(--state-soft);
+  outline: none;
+  transform: translateX(0.2rem);
+}
+
+.clinical-action-sheet .decision-option:disabled {
+  color: var(--osler-ink);
+  opacity: 0.78;
+}
+
+.decision-selection-label {
+  color: var(--osler-sage);
+}
+
+.clinical-action-sheet .evaluation-feedback {
+  position: relative;
+  margin-top: 1.25rem;
+  border-width: 1px 1px 1px 0.35rem;
+  border-radius: 0.25rem;
+  padding: 1.15rem;
+  animation: clinical-note-in 200ms ease-out;
+}
+
+.feedback-stamp {
+  position: absolute;
+  top: -0.65rem;
+  right: 0.8rem;
+  border: 2px solid currentColor;
+  border-radius: 0.2rem;
+  padding: 0.18rem 0.4rem;
+  color: #6b5641;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: #fffdf7;
+  transform: rotate(-2deg);
+}
+
+.clinical-status-message,
+.clinical-error-note {
+  margin-top: 1rem;
+  border-left: 0.3rem solid var(--state-accent);
+  border-radius: 0.25rem;
+  padding: 0.85rem 1rem;
+  background: var(--state-soft);
+}
+
+.clinical-status-message {
+  max-width: none;
+}
+
+.clinical-error-note {
+  border-left-color: #984f48;
+  background: #fff0ed;
+}
+
+.clinical-error-note .text-action {
+  margin-top: 0.6rem;
+}
+
+.clinical-action-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.35rem;
+}
+
+.clinical-action-row .primary-action {
+  min-width: 10rem;
+  border-radius: 0.3rem;
+  color: #fff;
+  background: var(--osler-ink);
+  box-shadow: 0 0.45rem 0.9rem rgb(24 42 53 / 18%);
+}
+
+.clinical-action-row .primary-action:hover:not(:disabled) {
+  background: var(--osler-sage);
+  outline: none;
+}
+
+@keyframes clinical-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.2rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes clinical-note-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 900px) {
+  .clinical-simulation-view {
+    grid-template-columns: minmax(190px, 0.58fr) minmax(0, 1.45fr);
+    gap: 1rem;
+  }
+
+  .clipboard-paper {
+    padding: 1.5rem;
+  }
+
+  .patient-facts,
+  .clipboard-patient-summary .patient-facts {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .simulation-mode .app-main {
+    padding: 1rem;
+  }
+
+  .clinical-simulation-view {
+    grid-template-columns: 1fr;
+  }
+
+  .patient-panel {
+    display: grid;
+    grid-template-columns: minmax(7.5rem, 0.65fr) minmax(0, 1.35fr);
+    align-items: center;
+    transform: none;
+  }
+
+  .patient-portrait-frame {
+    min-height: 9rem;
+    height: 9rem;
+  }
+
+  .patient-identity {
+    padding: 0.8rem 0.9rem;
+  }
+
+  .patient-panel-label {
+    top: 1rem;
+  }
+
+  .patient-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .clinical-clipboard {
+    transform: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .clinical-simulation-view {
+    gap: 0.85rem;
+  }
+
+  .patient-panel {
+    grid-template-columns: 7rem minmax(0, 1fr);
+    padding: 0.55rem;
+  }
+
+  .patient-portrait-frame {
+    min-height: 7.7rem;
+    height: 7.7rem;
+  }
+
+  .patient-panel-label {
+    top: 0.8rem;
+    padding: 0.3rem 0.55rem 0.3rem 0.75rem;
+    font-size: 0.62rem;
+  }
+
+  .patient-identity h2 {
+    font-size: 1.35rem;
+  }
+
+  .patient-facts {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    margin-top: 0.65rem;
+  }
+
+  .patient-facts div {
+    display: flex;
+    gap: 0.35rem;
+  }
+
+  .patient-facts dd {
+    margin-top: 0;
+  }
+
+  .clipboard-paper {
+    min-height: 0;
+    padding: 1.35rem 1rem 1rem;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 2rem, rgb(85 112 107 / 8%) 2rem 2.05rem),
+      var(--osler-surface);
+  }
+
+  .clipboard-meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .workspace-tab {
+    flex: 1;
+    padding-inline: 0.55rem;
+  }
+
+  .clinical-action-sheet {
+    margin-inline: -0.25rem;
+    padding: 1.1rem 0.9rem;
+  }
+
+  .clinical-action-row,
+  .clinical-action-row .primary-action {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clinical-simulation-view *,
+  .clinical-simulation-view *::before,
+  .clinical-simulation-view *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

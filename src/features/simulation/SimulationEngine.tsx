@@ -1,29 +1,23 @@
 import { useReducer, useRef } from 'react'
 import { getVisibleCaseStepByKey } from '../../services/cases'
 import { resolveSimulationTransition } from '../../services/simulation'
-import { StepRenderer } from './StepRenderer'
 import {
   createInitialSimulationState,
   simulationReducer,
   toSimulationResult,
 } from './state'
+import { ClinicalSimulationView } from './ui/ClinicalSimulationView'
+import './simulation.css'
 import type {
   MinimalSimulationResult,
   SimulationCase,
-  SimulationState,
   SimulationTransition,
+  SimulationState,
 } from './types'
 
 export interface SimulationEngineProps {
   simulationCase: SimulationCase
   onComplete: (result: MinimalSimulationResult) => void
-}
-
-const presentationLabels: Record<SimulationState['presentationState'], string> = {
-  stable: 'Estável',
-  warning: 'Atenção',
-  critical: 'Crítico',
-  recovery: 'Recuperação',
 }
 
 export function SimulationEngine({
@@ -210,54 +204,14 @@ export function SimulationEngine({
     )
   }
 
-  const { case: clinicalCase, patient } = state.simulationCase
-
   if (state.phase === 'intro') {
     return (
-      <section
-        className="page-card simulation-intro"
-        aria-labelledby="simulation-engine-title"
-      >
-        <p className="eyebrow">Caso de simulação</p>
-        <h1 id="simulation-engine-title">{clinicalCase.title}</h1>
-        <p>{clinicalCase.description}</p>
-
-        <div className="patient-summary" aria-label="Resumo do paciente">
-          <p className="status-label">Paciente</p>
-          <h2>{patient.displayName}</h2>
-          <dl className="case-details">
-            {patient.ageYears !== null ? (
-              <div>
-                <dt>Idade</dt>
-                <dd>{patient.ageYears} anos</dd>
-              </div>
-            ) : null}
-            {patient.sexOrAnatomyContext ? (
-              <div>
-                <dt>Contexto</dt>
-                <dd>{patient.sexOrAnatomyContext}</dd>
-              </div>
-            ) : null}
-          </dl>
-        </div>
-
-        {clinicalCase.educationalObjective ? (
-          <div className="learning-objective">
-            <p className="status-label">Objetivo educacional</p>
-            <p>{clinicalCase.educationalObjective}</p>
-          </div>
-        ) : null}
-
-        <div className="action-row">
-          <button
-            className="primary-action"
-            onClick={() => dispatch({ type: 'started' })}
-            type="button"
-          >
-            Iniciar caso
-          </button>
-        </div>
-      </section>
+      <ClinicalSimulationView
+        mode="intro"
+        onStart={() => dispatch({ type: 'started' })}
+        presentationState={state.presentationState}
+        simulationCase={state.simulationCase}
+      />
     )
   }
 
@@ -266,66 +220,30 @@ export function SimulationEngine({
     state.currentStep.type === 'information' && state.pendingTransition === null
   const canContinueDecision =
     state.currentStep.type === 'decision' && state.phase === 'feedback'
+  const continueCurrentStep = canContinueDecision
+    ? continueAfterFeedback
+    : () => void resolveCurrentStep(null)
 
   return (
-    <section
-      className={`page-card simulation-step presentation-${state.presentationState}`}
-      aria-labelledby="step-title"
-      data-presentation-state={state.presentationState}
-    >
-      <div className="step-progress" aria-label={`Etapa ${state.stepNumber}`}>
-        <span>Etapa {state.stepNumber}</span>
-        <span className="presentation-state">
-          Estado: {presentationLabels[state.presentationState]}
-        </span>
-      </div>
-
-      <p className="eyebrow">{clinicalCase.title}</p>
-      <StepRenderer
-        disabled={busy}
-        evaluation={state.evaluation}
-        onSelectOption={selectOption}
-        selectedOptionId={state.selectedOptionId}
-        step={state.currentStep}
-      />
-
-      {state.phase === 'evaluating' ? (
-        <p className="status-message" role="status">
-          Avaliando sua escolha…
-        </p>
-      ) : null}
-
-      {state.phase === 'advancing' ? (
-        <p className="status-message" role="status">
-          Carregando próxima etapa…
-        </p>
-      ) : null}
-
-      {state.error ? (
-        <div className="status-message status-error" role="alert">
-          <p>{state.error.message}</p>
-          <button className="text-action" onClick={retry} type="button">
-            Tentar novamente
-          </button>
-        </div>
-      ) : null}
-
-      {canContinueInformation || canContinueDecision ? (
-        <div className="action-row">
-          <button
-            className="primary-action"
-            disabled={busy}
-            onClick={
-              canContinueDecision
-                ? continueAfterFeedback
-                : () => void resolveCurrentStep(null)
-            }
-            type="button"
-          >
-            Continuar
-          </button>
-        </div>
-      ) : null}
-    </section>
+    <ClinicalSimulationView
+      busy={busy}
+      errorMessage={state.error?.message ?? null}
+      evaluation={state.evaluation}
+      mode="step"
+      onContinue={continueCurrentStep}
+      onRetry={retry}
+      onSelectOption={selectOption}
+      presentationState={state.presentationState}
+      selectedOptionId={state.selectedOptionId}
+      showContinue={canContinueInformation || canContinueDecision}
+      simulationCase={state.simulationCase}
+      status={
+        state.phase === 'evaluating' || state.phase === 'advancing'
+          ? state.phase
+          : null
+      }
+      step={state.currentStep}
+      stepNumber={state.stepNumber}
+    />
   )
 }

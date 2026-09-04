@@ -175,7 +175,9 @@ export async function getSimulationCase(
   const [patientResult, firstStepResult] = await Promise.all([
     supabase
       .from('patients')
-      .select('id, display_name, age_years, sex_or_anatomy_context, pronouns')
+      .select(
+        'id, display_name, age_years, sex_or_anatomy_context, pronouns, visual_ref',
+      )
       .eq('id', caseData.patient_id)
       .maybeSingle(),
     supabase

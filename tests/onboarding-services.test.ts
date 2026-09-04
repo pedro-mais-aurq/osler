@@ -234,6 +234,7 @@ describe('serviço de casos', () => {
       age_years: 45,
       sex_or_anatomy_context: null,
       pronouns: null,
+      visual_ref: 'patients/patient-test.svg',
     }
     const stepRow = {
       id: '40000000-0000-4000-8000-000000000001',
@@ -263,6 +264,7 @@ describe('serviço de casos', () => {
       ageYears: patientRow.age_years,
       sexOrAnatomyContext: patientRow.sex_or_anatomy_context,
       pronouns: patientRow.pronouns,
+      visualRef: patientRow.visual_ref,
     })
     expect(result.ok && result.simulationCase.firstStep).toEqual({
       id: stepRow.id,

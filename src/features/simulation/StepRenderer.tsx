@@ -17,24 +17,31 @@ const classificationLabels: Record<StepEvaluation['classification'], string> = {
 
 function StepBody({ step }: { step: CaseStep }) {
   return (
-    <>
-      <h1 id="step-title">{step.title ?? 'Continuação do caso'}</h1>
+    <div className="clinical-step-body">
+      <p className="sheet-label">Registro atual</p>
+      <h2 id="step-title">{step.title ?? 'Continuação do caso'}</h2>
       <p>{step.content.body}</p>
 
       {step.content.observations.length > 0 ? (
-        <ul className="observation-list">
-          {step.content.observations.map((observation) => (
-            <li key={observation}>{observation}</li>
-          ))}
-        </ul>
+        <div className="clinical-observations">
+          <p className="sheet-label">Observações</p>
+          <ul className="observation-list">
+            {step.content.observations.map((observation) => (
+              <li key={observation}>{observation}</li>
+            ))}
+          </ul>
+        </div>
       ) : null}
-    </>
+    </div>
   )
 }
 
 function EvaluationFeedback({ evaluation }: { evaluation: StepEvaluation }) {
   return (
     <div className={`evaluation-feedback ${evaluation.classification}`} role="status">
+      <span aria-hidden="true" className="feedback-stamp">
+        Orientação
+      </span>
       <p className="status-label">
         {classificationLabels[evaluation.classification]}
       </p>
@@ -58,6 +65,7 @@ export function StepRenderer({
       return (
         <>
           <StepBody step={step} />
+          <p className="sheet-label decision-prompt">Ações disponíveis</p>
           <div
             aria-busy={disabled}
             aria-label="Opções de decisão"

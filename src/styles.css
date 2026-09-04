@@ -1,4 +1,10 @@
 :root {
+  --osler-ink: #182a35;
+  --osler-sage: #55706b;
+  --osler-paper: #e9e0d1;
+  --osler-surface: #f8f5ed;
+  --osler-border: #b8c1b8;
+  --osler-muted: #56656a;
   color: #162126;
   background: #edf1ef;
   font-family:

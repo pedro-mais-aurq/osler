@@ -125,7 +125,8 @@ export function parsePatient(data: unknown): SimulationPatient | null {
     (data.age_years !== null && typeof data.age_years !== 'number') ||
     (data.sex_or_anatomy_context !== null &&
       typeof data.sex_or_anatomy_context !== 'string') ||
-    (data.pronouns !== null && typeof data.pronouns !== 'string')
+    (data.pronouns !== null && typeof data.pronouns !== 'string') ||
+    (data.visual_ref !== null && typeof data.visual_ref !== 'string')
   ) {
     return null
   }
@@ -136,6 +137,7 @@ export function parsePatient(data: unknown): SimulationPatient | null {
     ageYears: data.age_years,
     sexOrAnatomyContext: data.sex_or_anatomy_context,
     pronouns: data.pronouns,
+    visualRef: data.visual_ref,
   }
 }
 

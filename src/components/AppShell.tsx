@@ -11,9 +11,10 @@ const developmentRoutes = [
 export function AppShell({ children }: PropsWithChildren) {
   const location = useLocation()
   const isEntry = location.pathname === '/'
+  const isSimulation = location.pathname === '/simulacao'
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${isSimulation ? ' simulation-mode' : ''}`}>
       <header className={`app-header${isEntry ? ' entry-header' : ''}`}>
         <NavLink className="brand" to="/" aria-label="OSLER — ir para a entrada">
           <img alt="" className="brand-logo" src={Logo} />
@@ -40,7 +41,7 @@ export function AppShell({ children }: PropsWithChildren) {
       <main className="app-main">{children}</main>
 
       <footer className="app-footer">
-        MVP · Parte 4/10
+        MVP · Parte 6/10
       </footer>
     </div>
   )

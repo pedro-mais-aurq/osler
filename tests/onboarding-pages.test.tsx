@@ -112,6 +112,7 @@ const simulationCase = {
     ageYears: 42,
     sexOrAnatomyContext: 'Contexto fictício de teste.',
     pronouns: null,
+    visualRef: null,
   },
   firstStep: simulationSteps[0],
 }
@@ -450,7 +451,9 @@ describe('fatia vertical da simulação', () => {
     const user = userEvent.setup()
     const router = renderFlow(`/simulacao?case=${nursingCase.id}`)
 
-    expect(await screen.findByText('Paciente Teste')).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { name: 'Paciente Teste' }),
+    ).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Iniciar caso' }))
 
     expect(screen.getByRole('heading', { name: 'Primeira informação' })).toBeTruthy()

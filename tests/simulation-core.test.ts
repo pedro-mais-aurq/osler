@@ -58,6 +58,7 @@ function makeCase(
       ageYears: null,
       sexOrAnatomyContext: null,
       pronouns: null,
+      visualRef: null,
     },
     firstStep: { ...firstStep, caseId: id },
   }

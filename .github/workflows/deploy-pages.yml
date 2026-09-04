@@ -42,6 +42,9 @@ jobs:
           test -n "$VITE_SUPABASE_URL" || { echo "::error::Missing VITE_SUPABASE_URL secret"; exit 1; }
           test -n "$VITE_SUPABASE_ANON_KEY" || { echo "::error::Missing VITE_SUPABASE_ANON_KEY secret"; exit 1; }
 
+      - name: Test
+        run: npm test
+
       - name: Typecheck
         run: npm run typecheck
 
