@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import type { MinimalSimulationResult } from '../types/database'
+import type { MinimalSimulationResult } from '../features/simulation/types'
 
 function isSimulationResult(value: unknown): value is MinimalSimulationResult {
   if (!value || typeof value !== 'object') {

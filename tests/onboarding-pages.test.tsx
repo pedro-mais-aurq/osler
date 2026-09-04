@@ -20,12 +20,12 @@ Object.defineProperty(globalThis, 'AbortController', {
 
 const serviceMocks = vi.hoisted(() => ({
   ensureAnonymousStudentSession: vi.fn(),
-  evaluateCaseStep: vi.fn(),
   getCurrentStudent: vi.fn(),
   getCurrentStudentCourse: vi.fn(),
-  getNextVisibleCaseStep: vi.fn(),
   getSimulationCase: vi.fn(),
+  getVisibleCaseStepByKey: vi.fn(),
   resolvePublishedCaseForCourse: vi.fn(),
+  resolveSimulationTransition: vi.fn(),
   updateCurrentStudentCourse: vi.fn(),
 }))
 
@@ -40,13 +40,13 @@ vi.mock('../src/services/student', () => ({
 }))
 
 vi.mock('../src/services/cases', () => ({
-  getNextVisibleCaseStep: serviceMocks.getNextVisibleCaseStep,
   getSimulationCase: serviceMocks.getSimulationCase,
+  getVisibleCaseStepByKey: serviceMocks.getVisibleCaseStepByKey,
   resolvePublishedCaseForCourse: serviceMocks.resolvePublishedCaseForCourse,
 }))
 
 vi.mock('../src/services/simulation', () => ({
-  evaluateCaseStep: serviceMocks.evaluateCaseStep,
+  resolveSimulationTransition: serviceMocks.resolveSimulationTransition,
 }))
 
 const session = {
@@ -63,54 +63,57 @@ const nursingCase = {
   title: 'Caso publicado de Enfermagem',
   course: 'nursing',
   description: 'Descrição visível do caso.',
-  educational_objective: 'Objetivo educacional visível.',
+  educationalObjective: 'Objetivo educacional visível.',
   status: 'published',
 }
+
+const simulationSteps = [
+  {
+    id: '40000000-0000-4000-8000-000000000001',
+    caseId: nursingCase.id,
+    position: 1,
+    stepKey: 'first-information',
+    type: 'information' as const,
+    title: 'Primeira informação',
+    content: { body: 'Informação inicial.', observations: ['Primeira observação.'] },
+    presentationState: 'stable' as const,
+  },
+  {
+    id: '40000000-0000-4000-8000-000000000002',
+    caseId: nursingCase.id,
+    position: 2,
+    stepKey: 'decision',
+    type: 'decision' as const,
+    title: 'Decisão de teste',
+    content: { body: 'O que você faz?', observations: [] },
+    options: [
+      { id: 'ideal-option', label: 'Escolha segura' },
+      { id: 'unsafe-option', label: 'Escolha arriscada' },
+    ],
+    presentationState: 'warning' as const,
+  },
+  {
+    id: '40000000-0000-4000-8000-000000000003',
+    caseId: nursingCase.id,
+    position: 3,
+    stepKey: 'final-information',
+    type: 'information' as const,
+    title: 'Continuidade',
+    content: { body: 'Encerramento do caso.', observations: [] },
+    presentationState: 'recovery' as const,
+  },
+]
 
 const simulationCase = {
   case: nursingCase,
   patient: {
     id: '30000000-0000-4000-8000-000000000001',
-    display_name: 'Paciente Teste',
-    age_years: 42,
-    sex_or_anatomy_context: 'Contexto fictício de teste.',
+    displayName: 'Paciente Teste',
+    ageYears: 42,
+    sexOrAnatomyContext: 'Contexto fictício de teste.',
     pronouns: null,
   },
-  steps: [
-    {
-      id: '40000000-0000-4000-8000-000000000001',
-      case_id: nursingCase.id,
-      position: 1,
-      step_key: 'first-information',
-      step_type: 'information',
-      title: 'Primeira informação',
-      content: { body: 'Informação inicial.', observations: ['Primeira observação.'] },
-      options: [],
-    },
-    {
-      id: '40000000-0000-4000-8000-000000000002',
-      case_id: nursingCase.id,
-      position: 2,
-      step_key: 'decision',
-      step_type: 'decision',
-      title: 'Decisão de teste',
-      content: { body: 'O que você faz?', observations: [] },
-      options: [
-        { id: 'ideal-option', label: 'Escolha segura' },
-        { id: 'unsafe-option', label: 'Escolha arriscada' },
-      ],
-    },
-    {
-      id: '40000000-0000-4000-8000-000000000003',
-      case_id: nursingCase.id,
-      position: 3,
-      step_key: 'final-information',
-      step_type: 'information',
-      title: 'Continuidade',
-      content: { body: 'Encerramento do caso.', observations: [] },
-      options: [],
-    },
-  ],
+  firstStep: simulationSteps[0],
 }
 
 function renderFlow(initialEntry = '/') {
@@ -146,24 +149,60 @@ beforeEach(() => {
   })
   serviceMocks.getSimulationCase.mockResolvedValue({
     ok: true,
-    simulationCase: { ...simulationCase, steps: [simulationCase.steps[0]] },
+    simulationCase,
   })
-  serviceMocks.getNextVisibleCaseStep.mockImplementation(
-    async (_caseId: string, currentPosition: number) => ({
+  serviceMocks.getVisibleCaseStepByKey.mockImplementation(
+    async (_caseId: string, stepKey: string) => ({
       ok: true,
-      step:
-        simulationCase.steps.find((step) => step.position > currentPosition) ?? null,
+      step: simulationSteps.find((step) => step.stepKey === stepKey),
     }),
   )
-  serviceMocks.evaluateCaseStep.mockResolvedValue({
-    ok: true,
-    evaluation: {
-      classification: 'ideal',
-      scoreDelta: 2,
-      feedback: 'Boa escolha.',
-      consequence: 'A pessoa permanece segura.',
+  serviceMocks.resolveSimulationTransition.mockImplementation(
+    async (_caseId: string, stepId: string, optionId: string | null) => {
+      if (stepId === simulationSteps[0].id) {
+        return {
+          ok: true,
+          transition: {
+            evaluation: null,
+            nextStepKey: simulationSteps[1].stepKey,
+            completed: false,
+            presentationState: 'warning',
+          },
+        }
+      }
+
+      if (stepId === simulationSteps[2].id) {
+        return {
+          ok: true,
+          transition: {
+            evaluation: null,
+            nextStepKey: null,
+            completed: true,
+            presentationState: null,
+          },
+        }
+      }
+
+      return {
+        ok: true,
+        transition: {
+          evaluation: {
+            classification: optionId === 'unsafe-option' ? 'unsafe' : 'ideal',
+            scoreDelta: optionId === 'unsafe-option' ? -1 : 2,
+            feedback:
+              optionId === 'unsafe-option'
+                ? 'Essa escolha cria um risco evitável.'
+                : 'Boa escolha.',
+            consequence:
+              optionId === 'unsafe-option' ? 'A ação é interrompida.' : null,
+          },
+          nextStepKey: simulationSteps[2].stepKey,
+          completed: false,
+          presentationState: 'recovery',
+        },
+      }
     },
-  })
+  )
 })
 
 describe('entrada e professor', () => {
@@ -421,9 +460,9 @@ describe('fatia vertical da simulação', () => {
     expect(await screen.findByRole('heading', { name: 'Decisão de teste' })).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Escolha segura' }))
 
-    expect(serviceMocks.evaluateCaseStep).toHaveBeenCalledWith(
+    expect(serviceMocks.resolveSimulationTransition).toHaveBeenCalledWith(
       nursingCase.id,
-      simulationCase.steps[1].id,
+      simulationSteps[1].id,
       'ideal-option',
     )
     expect(await screen.findByText('Escolha ideal')).toBeTruthy()
@@ -440,15 +479,48 @@ describe('fatia vertical da simulação', () => {
   })
 
   it('mostra feedback não ideal devolvido pelo servidor', async () => {
-    serviceMocks.evaluateCaseStep.mockResolvedValue({
-      ok: true,
-      evaluation: {
-        classification: 'unsafe',
-        scoreDelta: -1,
-        feedback: 'Essa escolha cria um risco evitável.',
-        consequence: 'A ação é interrompida.',
+    serviceMocks.resolveSimulationTransition.mockImplementation(
+      async (_caseId: string, stepId: string) => {
+        if (stepId === simulationSteps[0].id) {
+          return {
+            ok: true,
+            transition: {
+              evaluation: null,
+              nextStepKey: simulationSteps[1].stepKey,
+              completed: false,
+              presentationState: 'warning',
+            },
+          }
+        }
+
+        if (stepId === simulationSteps[2].id) {
+          return {
+            ok: true,
+            transition: {
+              evaluation: null,
+              nextStepKey: null,
+              completed: true,
+              presentationState: null,
+            },
+          }
+        }
+
+        return {
+          ok: true,
+          transition: {
+            evaluation: {
+              classification: 'unsafe',
+              scoreDelta: -1,
+              feedback: 'Essa escolha cria um risco evitável.',
+              consequence: 'A ação é interrompida.',
+            },
+            nextStepKey: simulationSteps[2].stepKey,
+            completed: false,
+            presentationState: 'critical',
+          },
+        }
       },
-    })
+    )
     const user = userEvent.setup()
     const router = renderFlow(`/simulacao?case=${nursingCase.id}`)
 
@@ -467,21 +539,37 @@ describe('fatia vertical da simulação', () => {
 
   it('permite tentar novamente quando a RPC falha', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    serviceMocks.evaluateCaseStep
-      .mockResolvedValueOnce({
-        ok: false,
-        message: 'Não foi possível avaliar sua escolha. Tente novamente.',
-        cause: new Error('network'),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        evaluation: {
-          classification: 'acceptable',
-          scoreDelta: 1,
-          feedback: 'Escolha aceitável após nova tentativa.',
-          consequence: null,
-        },
-      })
+    serviceMocks.resolveSimulationTransition.mockImplementation(
+      vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          transition: {
+            evaluation: null,
+            nextStepKey: simulationSteps[1].stepKey,
+            completed: false,
+            presentationState: 'warning',
+          },
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          message: 'Não foi possível avaliar sua escolha. Tente novamente.',
+          cause: new Error('network'),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          transition: {
+            evaluation: {
+              classification: 'acceptable',
+              scoreDelta: 1,
+              feedback: 'Escolha aceitável após nova tentativa.',
+              consequence: null,
+            },
+            nextStepKey: simulationSteps[2].stepKey,
+            completed: false,
+            presentationState: 'recovery',
+          },
+        }),
+    )
     const user = userEvent.setup()
     renderFlow(`/simulacao?case=${nursingCase.id}`)
 
@@ -489,13 +577,13 @@ describe('fatia vertical da simulação', () => {
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
     await user.click(await screen.findByRole('button', { name: 'Escolha segura' }))
     await user.click(
-      await screen.findByRole('button', { name: 'Tentar avaliar novamente' }),
+      await screen.findByRole('button', { name: 'Tentar novamente' }),
     )
 
     expect(await screen.findByText('Escolha aceitável após nova tentativa.')).toBeTruthy()
-    expect(serviceMocks.evaluateCaseStep).toHaveBeenCalledTimes(2)
+    expect(serviceMocks.resolveSimulationTransition).toHaveBeenCalledTimes(3)
     expect(consoleError).toHaveBeenCalledWith(
-      'Falha ao avaliar escolha da simulação.',
+      'Falha ao resolver transição da simulação.',
       expect.any(Error),
     )
     consoleError.mockRestore()

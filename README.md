@@ -1,6 +1,6 @@
 # OSLER — MVP
 
-Plataforma educacional de simulação clínica interprofissional. Esta versão contém a primeira fatia vertical de simulação da Parte 4/10, sobre a fundação, o modelo mínimo de dados e o onboarding das Partes 1 a 3.
+Plataforma educacional de simulação clínica interprofissional. Esta versão contém o motor genérico de casos da Parte 5/10, preservando a primeira fatia vertical da Parte 4 e a fundação, o modelo mínimo de dados e o onboarding das Partes 1 a 3.
 
 ## Executar localmente
 
@@ -45,6 +45,18 @@ A sessão é persistida pelo SDK do Supabase e o curso pelo banco; por isso ambo
 
 O caso candidato `seguranca-ao-levantar-no-ambulatorio` está em `draft`, com `clinical_content_validated = false` e revisão humana pendente. Consulte `docs/cases/p4-nursing-case.md`. Ele não aparece para estudantes até que exista revisão clínica e pedagógica independente e uma publicação auditável.
 
+## Motor da Parte 5
+
+- `SimulationPage` cuida somente de identidade, curso, resolução/carregamento do caso, estados de página e navegação; `SimulationEngine` recebe dados normalizados e mantém o ciclo genérico de início, seleção, avaliação, avanço e conclusão.
+- `StepRenderer` suporta as etapas discriminadas `information` e `decision`. Um tipo desconhecido falha de modo amigável e não é interpretado como outro tipo.
+- O cliente carrega apenas a primeira etapa e, depois, somente a `step_key` sanitizada escolhida pela RPC. Não há preload de etapas futuras.
+- `resolve_simulation_transition` valida estudante, curso, caso publicado, etapa, opção, regra privada e destino. Ela suporta fallback linear, ramificação simples para outra etapa do mesmo caso e conclusão explícita.
+- Classificação, pontuação e feedback continuam vindo apenas da regra da opção selecionada. O estado visual `stable | warning | critical | recovery` é uma projeção explícita, independente da pontuação e do modelo de verdade.
+- Tipos de domínio e adapters camelCase vivem em `src/features/simulation`; `src/types/database.ts` não se apresenta como arquivo gerado pela CLI.
+- O motor não grava `simulation_sessions` nem `simulation_actions`. Persistência continua reservada para a Parte 8.
+
+Novos casos lineares ou com ramificações simples podem ser adicionados por dados, sem alterar o motor. O mesmo vale para casos de `clinical_analysis`: basta haver conteúdo publicado e autorizado para o curso. A camada visual pode ser substituída na Parte 6 sem mudar o reducer ou o contrato de transição.
+
 ## Supabase
 
 O schema versionado está em `supabase/migrations` e a fixture técnica está em `supabase/seed.sql`. Com a CLI e um runtime compatível com Docker:
@@ -55,7 +67,7 @@ O schema versionado está em `supabase/migrations` e a fixture técnica está em
 
 Para um projeto remoto, use `npx supabase@2.116.0 link --project-ref <project-ref>`, revise com `npx supabase@2.116.0 db push --dry-run` e aplique com `npx supabase@2.116.0 db push`. Migrations não são executadas pelo deploy do frontend.
 
-Depois de aplicar o schema, gere os tipos completos com `npx supabase@2.116.0 gen types typescript --local > src/types/database.generated.ts`. O arquivo `src/types/database.ts` contém apenas a superfície mínima temporária necessária até a P4; não é um arquivo falsamente apresentado como output da CLI.
+Depois de aplicar o schema, gere os tipos completos com `npx supabase@2.116.0 gen types typescript --local > src/types/database.generated.ts`. O arquivo `src/types/database.ts` contém apenas a superfície mínima temporária de infraestrutura; não é um arquivo falsamente apresentado como output da CLI.
 
 O ambiente local já está configurado com `enable_anonymous_sign_ins = true`. Pendência operacional do ambiente hospedado: **Habilitar anonymous sign-ins no projeto Supabase hospedado.** Faça isso em Auth no projeto OSLER correto; não use uma `service_role` no frontend.
 

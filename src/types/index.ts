@@ -2,7 +2,6 @@ export type AppRoute = '/' | '/professor' | '/curso' | '/simulacao' | '/resultad
 export type {
   AppRole,
   CaseStatus,
-  ClinicalCaseHandoff,
   CourseCode,
   StudentCourse,
   StudentIdentity,

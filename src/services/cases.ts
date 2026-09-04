@@ -1,21 +1,25 @@
-import { supabase, supabaseConfigurationError } from '../lib/supabase'
+import {
+  parseCaseStep,
+  parseCaseSummary,
+  parsePatient,
+  unsupportedStepMessage,
+} from '../features/simulation/parsers'
 import type {
-  ClinicalCaseHandoff,
+  CaseStep,
   SimulationCase,
-  SimulationPatient,
-  StudentCourse,
-  VisibleCaseStep,
-  VisibleStepOption,
-} from '../types/database'
+  SimulationCaseSummary,
+} from '../features/simulation/types'
+import { supabase, supabaseConfigurationError } from '../lib/supabase'
+import type { StudentCourse } from '../types/database'
 
 export type CaseLookupResult =
-  | { ok: true; case: ClinicalCaseHandoff | null }
+  | { ok: true; case: SimulationCaseSummary | null }
   | { ok: false; message: string; cause?: unknown }
 
 export type CaseResolutionResult =
   | {
       ok: true
-      case: ClinicalCaseHandoff | null
+      case: SimulationCaseSummary | null
       requestedCaseAccepted: boolean
     }
   | { ok: false; message: string; cause?: unknown }
@@ -25,11 +29,13 @@ export type SimulationCaseResult =
   | { ok: false; message: string; cause?: unknown }
 
 export type VisibleCaseStepResult =
-  | { ok: true; step: VisibleCaseStep | null }
+  | { ok: true; step: CaseStep }
   | { ok: false; message: string; cause?: unknown }
 
 const handoffColumns =
   'id, slug, title, course, description, educational_objective, status'
+const stepColumns =
+  'id, case_id, position, step_key, step_type, title, content, options, metadata'
 
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -39,112 +45,6 @@ function unavailableResult(cause?: unknown): CaseLookupResult {
     ok: false,
     message: 'Não foi possível consultar os casos agora. Tente novamente.',
     cause,
-  }
-}
-
-function normalizeCase(data: unknown): ClinicalCaseHandoff | null {
-  if (!data || typeof data !== 'object') {
-    return null
-  }
-
-  return data as ClinicalCaseHandoff
-}
-
-function normalizePatient(data: unknown): SimulationPatient | null {
-  if (!data || typeof data !== 'object') {
-    return null
-  }
-
-  const row = data as Record<string, unknown>
-
-  if (typeof row.id !== 'string' || typeof row.display_name !== 'string') {
-    return null
-  }
-
-  return {
-    id: row.id,
-    display_name: row.display_name,
-    age_years: typeof row.age_years === 'number' ? row.age_years : null,
-    sex_or_anatomy_context:
-      typeof row.sex_or_anatomy_context === 'string'
-        ? row.sex_or_anatomy_context
-        : null,
-    pronouns: typeof row.pronouns === 'string' ? row.pronouns : null,
-  }
-}
-
-function normalizeOptions(data: unknown): VisibleStepOption[] | null {
-  if (!Array.isArray(data)) {
-    return null
-  }
-
-  const options: VisibleStepOption[] = []
-
-  for (const option of data) {
-    if (!option || typeof option !== 'object') {
-      return null
-    }
-
-    const row = option as Record<string, unknown>
-
-    if (typeof row.id !== 'string' || typeof row.label !== 'string') {
-      return null
-    }
-
-    options.push({ id: row.id, label: row.label })
-  }
-
-  return options
-}
-
-function normalizeStep(data: unknown): VisibleCaseStep | null {
-  if (!data || typeof data !== 'object') {
-    return null
-  }
-
-  const row = data as Record<string, unknown>
-  const rawContent = row.content
-  const options = normalizeOptions(row.options)
-
-  if (
-    typeof row.id !== 'string' ||
-    typeof row.case_id !== 'string' ||
-    typeof row.position !== 'number' ||
-    typeof row.step_key !== 'string' ||
-    (row.step_type !== 'information' && row.step_type !== 'decision') ||
-    (row.title !== null && typeof row.title !== 'string') ||
-    !rawContent ||
-    typeof rawContent !== 'object' ||
-    !options
-  ) {
-    return null
-  }
-
-  const content = rawContent as Record<string, unknown>
-
-  if (typeof content.body !== 'string') {
-    return null
-  }
-
-  const observations = Array.isArray(content.observations)
-    ? content.observations.filter(
-        (observation): observation is string => typeof observation === 'string',
-      )
-    : []
-
-  if (row.step_type === 'decision' && options.length === 0) {
-    return null
-  }
-
-  return {
-    id: row.id,
-    case_id: row.case_id,
-    position: row.position,
-    step_key: row.step_key,
-    step_type: row.step_type,
-    title: row.title,
-    content: { body: content.body, observations },
-    options,
   }
 }
 
@@ -168,7 +68,15 @@ async function getPublishedCaseByIdForCourse(
     return unavailableResult(error)
   }
 
-  return { ok: true, case: normalizeCase(data) }
+  if (!data) {
+    return { ok: true, case: null }
+  }
+
+  const clinicalCase = parseCaseSummary(data, course)
+
+  return clinicalCase
+    ? { ok: true, case: clinicalCase }
+    : unavailableResult(data)
 }
 
 export async function getFirstPublishedCaseForCourse(
@@ -192,7 +100,15 @@ export async function getFirstPublishedCaseForCourse(
     return unavailableResult(error)
   }
 
-  return { ok: true, case: normalizeCase(data) }
+  if (!data) {
+    return { ok: true, case: null }
+  }
+
+  const clinicalCase = parseCaseSummary(data, course)
+
+  return clinicalCase
+    ? { ok: true, case: clinicalCase }
+    : unavailableResult(data)
 }
 
 export async function resolvePublishedCaseForCourse(
@@ -252,7 +168,7 @@ export async function getSimulationCase(
     return {
       ok: false,
       message: 'Não foi possível carregar o caso publicado. Tente novamente.',
-      cause: caseError,
+      cause: caseError ?? caseData,
     }
   }
 
@@ -264,28 +180,40 @@ export async function getSimulationCase(
       .maybeSingle(),
     supabase
       .from('case_steps')
-      .select('id, case_id, position, step_key, step_type, title, content, options')
+      .select(stepColumns)
       .eq('case_id', caseId)
       .order('position', { ascending: true })
       .limit(1)
       .maybeSingle(),
   ])
 
-  const clinicalCase = normalizeCase(caseData)
-  const patient = normalizePatient(patientResult.data)
-  const firstStep = normalizeStep(firstStepResult.data)
+  const clinicalCase = parseCaseSummary(caseData, course)
+  const patient = parsePatient(patientResult.data)
+  const parsedStep = parseCaseStep(firstStepResult.data)
+
+  if (!parsedStep.ok && parsedStep.kind === 'unsupported_step') {
+    return {
+      ok: false,
+      message: unsupportedStepMessage,
+      cause: parsedStep.cause,
+    }
+  }
 
   if (
     patientResult.error ||
     firstStepResult.error ||
     !clinicalCase ||
     !patient ||
-    !firstStep
+    !parsedStep.ok ||
+    parsedStep.value.caseId !== caseId
   ) {
     return {
       ok: false,
       message: 'O conteúdo deste caso está incompleto. Tente outro caso mais tarde.',
-      cause: patientResult.error ?? firstStepResult.error,
+      cause:
+        patientResult.error ??
+        firstStepResult.error ??
+        (!parsedStep.ok ? parsedStep.cause : caseData),
     }
   }
 
@@ -294,14 +222,14 @@ export async function getSimulationCase(
     simulationCase: {
       case: clinicalCase,
       patient,
-      steps: [firstStep],
+      firstStep: parsedStep.value,
     },
   }
 }
 
-export async function getNextVisibleCaseStep(
+export async function getVisibleCaseStepByKey(
   caseId: string,
-  currentPosition: number,
+  stepKey: string,
 ): Promise<VisibleCaseStepResult> {
   if (!supabase) {
     return {
@@ -313,28 +241,33 @@ export async function getNextVisibleCaseStep(
 
   const { data, error } = await supabase
     .from('case_steps')
-    .select('id, case_id, position, step_key, step_type, title, content, options')
+    .select(stepColumns)
     .eq('case_id', caseId)
-    .gt('position', currentPosition)
-    .order('position', { ascending: true })
-    .limit(1)
+    .eq('step_key', stepKey)
     .maybeSingle()
 
-  if (error) {
+  if (error || !data) {
     return {
       ok: false,
       message: 'Não foi possível carregar a próxima etapa. Tente novamente.',
-      cause: error,
+      cause: error ?? data,
     }
   }
 
-  if (!data) {
-    return { ok: true, step: null }
+  const parsedStep = parseCaseStep(data)
+
+  if (!parsedStep.ok) {
+    return {
+      ok: false,
+      message:
+        parsedStep.kind === 'unsupported_step'
+          ? unsupportedStepMessage
+          : 'A próxima etapa retornou um formato inesperado. Tente novamente.',
+      cause: parsedStep.cause,
+    }
   }
 
-  const step = normalizeStep(data)
-
-  if (!step || step.case_id !== caseId || step.position <= currentPosition) {
+  if (parsedStep.value.caseId !== caseId || parsedStep.value.stepKey !== stepKey) {
     return {
       ok: false,
       message: 'A próxima etapa retornou um formato inesperado. Tente novamente.',
@@ -342,5 +275,5 @@ export async function getNextVisibleCaseStep(
     }
   }
 
-  return { ok: true, step }
+  return { ok: true, step: parsedStep.value }
 }

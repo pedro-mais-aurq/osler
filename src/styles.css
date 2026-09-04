@@ -300,10 +300,34 @@ h1 {
 .step-progress {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 1.5rem;
   color: #315e5a;
   font-size: 0.82rem;
   font-weight: 800;
+}
+
+.presentation-state {
+  border: 1px solid #aebfba;
+  border-radius: 999px;
+  padding: 0.3rem 0.6rem;
+  background: #ffffff;
+}
+
+.presentation-warning .presentation-state {
+  border-color: #d2ad72;
+  background: #fff8e8;
+}
+
+.presentation-critical .presentation-state {
+  border-color: #d7a6a1;
+  background: #fff3f1;
+}
+
+.presentation-recovery .presentation-state {
+  border-color: #79a899;
+  background: #ecf7f1;
 }
 
 .observation-list {

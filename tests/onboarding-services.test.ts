@@ -155,7 +155,14 @@ describe('serviço de casos', () => {
 
     const result = await getFirstPublishedCaseForCourse('nursing')
 
-    expect(result.ok && result.case).toEqual(caseRow)
+    expect(result.ok && result.case).toEqual({
+      id: caseRow.id,
+      slug: caseRow.slug,
+      title: caseRow.title,
+      description: caseRow.description,
+      educationalObjective: null,
+      status: caseRow.status,
+    })
     expect(builder.filters).toEqual([
       ['status', 'published'],
       ['course', 'nursing'],
@@ -190,7 +197,14 @@ describe('serviço de casos', () => {
       '20000000-0000-4000-8000-000000000002',
     )
 
-    expect(result.ok && result.case).toEqual(fallbackCase)
+    expect(result.ok && result.case).toEqual({
+      id: fallbackCase.id,
+      slug: fallbackCase.slug,
+      title: fallbackCase.title,
+      description: fallbackCase.description,
+      educationalObjective: null,
+      status: fallbackCase.status,
+    })
     expect(result.ok && result.requestedCaseAccepted).toBe(false)
     expect(requestedBuilder.filters).toEqual([
       ['id', '20000000-0000-4000-8000-000000000002'],
@@ -230,6 +244,7 @@ describe('serviço de casos', () => {
       title: 'Introdução',
       content: { body: 'Texto visível.', observations: [] },
       options: [],
+      metadata: {},
     }
     const caseBuilder = createBuilder(caseRow)
     const patientBuilder = createBuilder(patientRow)
@@ -242,8 +257,23 @@ describe('serviço de casos', () => {
 
     const result = await getSimulationCase(caseRow.id, 'nursing')
 
-    expect(result.ok && result.simulationCase.patient).toEqual(patientRow)
-    expect(result.ok && result.simulationCase.steps).toEqual([stepRow])
+    expect(result.ok && result.simulationCase.patient).toEqual({
+      id: patientRow.id,
+      displayName: patientRow.display_name,
+      ageYears: patientRow.age_years,
+      sexOrAnatomyContext: patientRow.sex_or_anatomy_context,
+      pronouns: patientRow.pronouns,
+    })
+    expect(result.ok && result.simulationCase.firstStep).toEqual({
+      id: stepRow.id,
+      caseId: stepRow.case_id,
+      position: stepRow.position,
+      stepKey: stepRow.step_key,
+      type: stepRow.step_type,
+      title: stepRow.title,
+      content: stepRow.content,
+      presentationState: 'stable',
+    })
     expect(supabaseMocks.from.mock.calls.map(([table]) => table)).toEqual([
       'clinical_cases',
       'patients',
@@ -254,7 +284,7 @@ describe('serviço de casos', () => {
     expect(stepsBuilder.limit).toHaveBeenCalledWith(1)
   })
 
-  it('carrega somente a próxima posição visível sem antecipar etapas futuras', async () => {
+  it('carrega somente a etapa indicada pela chave devolvida pela transição', async () => {
     const nextStep = {
       id: '40000000-0000-4000-8000-000000000002',
       case_id: '20000000-0000-4000-8000-000000000001',
@@ -264,27 +294,92 @@ describe('serviço de casos', () => {
       title: 'Próxima etapa',
       content: { body: 'Informação progressiva.', observations: [] },
       options: [],
+      metadata: { presentation_state: 'warning' },
     }
     const builder = createBuilder(nextStep)
     supabaseMocks.from.mockReturnValue(builder)
-    const { getNextVisibleCaseStep } = await import('../src/services/cases')
+    const { getVisibleCaseStepByKey } = await import('../src/services/cases')
 
-    const result = await getNextVisibleCaseStep(nextStep.case_id, 2)
+    const result = await getVisibleCaseStepByKey(
+      nextStep.case_id,
+      nextStep.step_key,
+    )
 
-    expect(result).toEqual({ ok: true, step: nextStep })
+    expect(result).toEqual({
+      ok: true,
+      step: {
+        id: nextStep.id,
+        caseId: nextStep.case_id,
+        position: nextStep.position,
+        stepKey: nextStep.step_key,
+        type: nextStep.step_type,
+        title: nextStep.title,
+        content: nextStep.content,
+        presentationState: 'warning',
+      },
+    })
     expect(supabaseMocks.from.mock.calls.map(([table]) => table)).toEqual([
       'case_steps',
     ])
     expect(builder.filters).toEqual([
       ['case_id', nextStep.case_id],
-      ['position', 2],
+      ['step_key', nextStep.step_key],
     ])
-    expect(builder.orders).toEqual([['position', { ascending: true }]])
-    expect(builder.limit).toHaveBeenCalledWith(1)
+    expect(builder.orders).toEqual([])
   })
 })
 
 describe('serviço de avaliação', () => {
+  it('encapsula a RPC P5 e normaliza transição e avaliação em camelCase', async () => {
+    supabaseMocks.rpc.mockResolvedValue({
+      data: [
+        {
+          classification: 'acceptable',
+          score_delta: 0,
+          feedback: 'Feedback selecionado.',
+          consequence: null,
+          next_step_key: 'next-step',
+          completed: false,
+          presentation_state: 'warning',
+        },
+      ],
+      error: null,
+    })
+    const { resolveSimulationTransition } = await import(
+      '../src/services/simulation'
+    )
+
+    const result = await resolveSimulationTransition(
+      'case-id',
+      'step-id',
+      'option-id',
+    )
+
+    expect(supabaseMocks.rpc).toHaveBeenCalledWith(
+      'resolve_simulation_transition',
+      {
+        p_case_id: 'case-id',
+        p_step_id: 'step-id',
+        p_option_id: 'option-id',
+      },
+    )
+    expect(result).toEqual({
+      ok: true,
+      transition: {
+        evaluation: {
+          classification: 'acceptable',
+          scoreDelta: 0,
+          feedback: 'Feedback selecionado.',
+          consequence: null,
+        },
+        nextStepKey: 'next-step',
+        completed: false,
+        presentationState: 'warning',
+      },
+    })
+    expect(supabaseMocks.from).not.toHaveBeenCalled()
+  })
+
   it('envia apenas os identificadores à RPC e normaliza a resposta mínima', async () => {
     supabaseMocks.rpc.mockResolvedValue({
       data: [
