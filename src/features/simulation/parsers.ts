@@ -1,6 +1,8 @@
 import type {
   CaseStep,
   ClinicalPresentationState,
+  LaboratoryStage,
+  LaboratoryVisibleData,
   SimulationCaseSummary,
   SimulationPatient,
   SimulationTransition,
@@ -27,6 +29,15 @@ const presentationStates: ReadonlySet<ClinicalPresentationState> = new Set([
   'critical',
   'recovery',
 ])
+const laboratoryStages: ReadonlySet<LaboratoryStage> = new Set([
+  'request',
+  'sample',
+  'preanalytical',
+  'analysis',
+  'result',
+])
+const laboratoryKeys = new Set(['stage', 'title', 'fields', 'notes'])
+const laboratoryFieldKeys = new Set(['label', 'value'])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -66,6 +77,57 @@ function parseOptions(value: unknown): StepOption[] | null {
   }
 
   return options
+}
+
+export function parseLaboratoryVisibleData(
+  value: unknown,
+): LaboratoryVisibleData | null {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).some((key) => !laboratoryKeys.has(key)) ||
+    typeof value.stage !== 'string' ||
+    !laboratoryStages.has(value.stage as LaboratoryStage) ||
+    typeof value.title !== 'string' ||
+    value.title.trim() === '' ||
+    !Array.isArray(value.fields) ||
+    value.fields.length === 0
+  ) {
+    return null
+  }
+
+  const fields = []
+
+  for (const field of value.fields) {
+    if (
+      !isRecord(field) ||
+      Object.keys(field).some((key) => !laboratoryFieldKeys.has(key)) ||
+      typeof field.label !== 'string' ||
+      field.label.trim() === '' ||
+      typeof field.value !== 'string' ||
+      field.value.trim() === ''
+    ) {
+      return null
+    }
+
+    fields.push({ label: field.label, value: field.value })
+  }
+
+  if (
+    value.notes !== undefined &&
+    (!Array.isArray(value.notes) ||
+      value.notes.some(
+        (note) => typeof note !== 'string' || note.trim() === '',
+      ))
+  ) {
+    return null
+  }
+
+  return {
+    stage: value.stage as LaboratoryStage,
+    title: value.title,
+    fields,
+    ...(value.notes ? { notes: value.notes } : {}),
+  }
 }
 
 export function parsePresentationState(
@@ -172,9 +234,17 @@ export function parseCaseStep(data: unknown): ParseResult<CaseStep> {
   }
 
   const observations = parseObservations(content.observations)
+  const laboratory =
+    content.laboratory === undefined
+      ? undefined
+      : parseLaboratoryVisibleData(content.laboratory)
   const presentationState = parsePresentationState(metadata.presentation_state)
 
-  if (!observations || !presentationState) {
+  if (
+    !observations ||
+    !presentationState ||
+    (content.laboratory !== undefined && !laboratory)
+  ) {
     return { ok: false, kind: 'invalid', cause: data }
   }
 
@@ -184,7 +254,11 @@ export function parseCaseStep(data: unknown): ParseResult<CaseStep> {
     position: data.position,
     stepKey: data.step_key,
     title: data.title,
-    content: { body: content.body, observations },
+    content: {
+      body: content.body,
+      observations,
+      ...(laboratory ? { laboratory } : {}),
+    },
     presentationState,
   }
 

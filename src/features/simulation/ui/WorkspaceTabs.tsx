@@ -16,6 +16,9 @@ export function WorkspaceTabs({ label, tabs }: WorkspaceTabsProps) {
   const [activeTab, setActiveTab] = useState(tabs[0]?.id ?? '')
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const instanceId = useId().replace(/:/g, '')
+  const selectedTabId = tabs.some((tab) => tab.id === activeTab)
+    ? activeTab
+    : (tabs[0]?.id ?? '')
 
   function focusTab(index: number) {
     const nextTab = tabs[index]
@@ -51,7 +54,7 @@ export function WorkspaceTabs({ label, tabs }: WorkspaceTabsProps) {
     <div className="workspace-tabs">
       <div aria-label={label} className="workspace-tab-list" role="tablist">
         {tabs.map((tab, index) => {
-          const selected = tab.id === activeTab
+          const selected = tab.id === selectedTabId
           const tabId = `${instanceId}-${tab.id}-tab`
           const panelId = `${instanceId}-${tab.id}-panel`
 
@@ -78,7 +81,7 @@ export function WorkspaceTabs({ label, tabs }: WorkspaceTabsProps) {
       </div>
 
       {tabs.map((tab) => {
-        const selected = tab.id === activeTab
+        const selected = tab.id === selectedTabId
 
         return (
           <div

@@ -38,6 +38,21 @@ const decisionStep: CaseStep = {
   presentationState: 'warning',
 }
 
+const laboratoryInformationStep: CaseStep = {
+  ...informationStep,
+  id: 'laboratory-step',
+  stepKey: 'laboratory-information',
+  content: {
+    body: 'Laboratory visible body.',
+    observations: [],
+    laboratory: {
+      stage: 'sample',
+      title: 'Visible sample',
+      fields: [{ label: 'Material', value: 'Whole blood' }],
+    },
+  },
+}
+
 function makeCase(
   id: string,
   course: StudentCourse,
@@ -274,7 +289,7 @@ describe('núcleo puro da simulação', () => {
   it('usa o mesmo estado e reducer para fixtures, ids e cursos diferentes', () => {
     const cases = [
       makeCase('fixture-a', 'nursing'),
-      makeCase('fixture-b', 'clinical_analysis'),
+      makeCase('fixture-b', 'clinical_analysis', laboratoryInformationStep),
     ]
 
     const states = cases.map((simulationCase) => {
@@ -291,5 +306,6 @@ describe('núcleo puro da simulação', () => {
       'fixture-b',
     ])
     expect(states.map((state) => state.score)).toEqual([0, 0])
+    expect(states[1].currentStep?.content.laboratory?.stage).toBe('sample')
   })
 })

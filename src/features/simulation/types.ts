@@ -35,9 +35,29 @@ export interface StepOption {
   label: string
 }
 
+export type LaboratoryStage =
+  | 'request'
+  | 'sample'
+  | 'preanalytical'
+  | 'analysis'
+  | 'result'
+
+export interface LaboratoryField {
+  label: string
+  value: string
+}
+
+export interface LaboratoryVisibleData {
+  stage: LaboratoryStage
+  title: string
+  fields: LaboratoryField[]
+  notes?: string[]
+}
+
 export interface StepContent {
   body: string
   observations: string[]
+  laboratory?: LaboratoryVisibleData
 }
 
 interface BaseCaseStep {

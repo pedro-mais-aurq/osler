@@ -55,13 +55,14 @@ export function ClinicalSimulationView(props: ClinicalSimulationViewProps) {
         patient={patient}
         presentationState={props.presentationState}
         stepNumber={isIntro ? null : props.stepNumber}
+        laboratory={isIntro ? undefined : props.step.content.laboratory}
       >
         {isIntro ? (
           <div className="case-start-sheet">
             <p className="sheet-label">Próxima ação</p>
             <h2>Conheça o cenário antes de começar</h2>
             <p>
-              Quando estiver pronto, inicie o atendimento. As informações serão
+              Quando estiver pronto, inicie a simulação. As informações serão
               apresentadas progressivamente.
             </p>
             <div className="clinical-action-row">

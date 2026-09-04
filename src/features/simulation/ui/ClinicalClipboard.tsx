@@ -1,27 +1,72 @@
 import type { PropsWithChildren } from 'react'
 import type {
   ClinicalPresentationState,
+  LaboratoryVisibleData,
   SimulationCaseSummary,
   SimulationPatient,
 } from '../types'
+import {
+  getLaboratoryTabLabel,
+  LaboratoryArtifactPanel,
+} from './LaboratoryArtifactPanel'
 import { PatientFacts } from './PatientPanel'
 import { PresentationStateBadge } from './PresentationStateBadge'
 import { WorkspaceTabs } from './WorkspaceTabs'
+import type { WorkspaceTab } from './WorkspaceTabs'
 
 export interface ClinicalClipboardProps extends PropsWithChildren {
   clinicalCase: SimulationCaseSummary
   patient: SimulationPatient
   presentationState: ClinicalPresentationState
   stepNumber: number | null
+  laboratory?: LaboratoryVisibleData
 }
 
 export function ClinicalClipboard({
   children,
   clinicalCase,
+  laboratory,
   patient,
   presentationState,
   stepNumber,
 }: ClinicalClipboardProps) {
+  const tabs: WorkspaceTab[] = [
+    {
+      id: 'clipboard',
+      label: 'Prancheta',
+      content: (
+        <div className="clipboard-context">
+          <p>{clinicalCase.description}</p>
+          {clinicalCase.educationalObjective ? (
+            <div className="learning-note">
+              <p className="sheet-label">Objetivo educacional</p>
+              <p>{clinicalCase.educationalObjective}</p>
+            </div>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      id: 'patient',
+      label: 'Paciente',
+      content: (
+        <div className="clipboard-patient-summary">
+          <p className="sheet-label">Dados disponíveis</p>
+          <h2>{patient.displayName}</h2>
+          <PatientFacts patient={patient} />
+        </div>
+      ),
+    },
+  ]
+
+  if (laboratory) {
+    tabs.push({
+      id: `laboratory-${laboratory.stage}`,
+      label: getLaboratoryTabLabel(laboratory.stage),
+      content: <LaboratoryArtifactPanel data={laboratory} />,
+    })
+  }
+
   return (
     <section
       aria-labelledby="clinical-case-title"
@@ -43,34 +88,7 @@ export function ClinicalClipboard({
 
         <WorkspaceTabs
           label="Informações da área clínica"
-          tabs={[
-            {
-              id: 'clipboard',
-              label: 'Prancheta',
-              content: (
-                <div className="clipboard-context">
-                  <p>{clinicalCase.description}</p>
-                  {clinicalCase.educationalObjective ? (
-                    <div className="learning-note">
-                      <p className="sheet-label">Objetivo educacional</p>
-                      <p>{clinicalCase.educationalObjective}</p>
-                    </div>
-                  ) : null}
-                </div>
-              ),
-            },
-            {
-              id: 'patient',
-              label: 'Paciente',
-              content: (
-                <div className="clipboard-patient-summary">
-                  <p className="sheet-label">Dados disponíveis</p>
-                  <h2>{patient.displayName}</h2>
-                  <PatientFacts patient={patient} />
-                </div>
-              ),
-            },
-          ]}
+          tabs={tabs}
         />
 
         <div className="clinical-action-sheet">{children}</div>

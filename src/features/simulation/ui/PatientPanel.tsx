@@ -93,7 +93,7 @@ export function PatientPanel({ patient, presentationState }: PatientPanelProps) 
         />
       </div>
       <div className="patient-identity">
-        <p className="patient-kicker">Pessoa em atendimento</p>
+        <p className="patient-kicker">Pessoa vinculada ao caso</p>
         <h2>{patient.displayName}</h2>
         <PatientFacts patient={patient} />
       </div>

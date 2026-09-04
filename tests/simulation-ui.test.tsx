@@ -171,6 +171,21 @@ describe('PresentationStateBadge', () => {
 })
 
 describe('ClinicalSimulationView', () => {
+  it('usa linguagem de início válida para os dois cursos', () => {
+    render(
+      <ClinicalSimulationView
+        mode="intro"
+        onStart={vi.fn()}
+        presentationState="stable"
+        simulationCase={simulationCase}
+      />,
+    )
+
+    expect(screen.getByText(/inicie a simulação/i)).toBeTruthy()
+    expect(screen.getByText('Pessoa vinculada ao caso')).toBeTruthy()
+    expect(screen.queryByText(/inicie o atendimento/i)).toBeNull()
+  })
+
   it('mantém a decisão clicável e visível ao trocar a aba visual', async () => {
     const user = userEvent.setup()
     const onSelectOption = vi.fn()
