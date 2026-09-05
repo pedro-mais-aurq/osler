@@ -93,7 +93,8 @@ export async function resolveSimulationTransition(
   return { ok: true, transition }
 }
 
-// P4 compatibility surface. The generic engine uses resolveSimulationTransition.
+// P4 compatibility surface. The P8 engine records decisions through the
+// session-bound persistence RPC instead of evaluating without a session.
 export async function evaluateCaseStep(
   caseId: string,
   stepId: string,

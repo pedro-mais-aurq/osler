@@ -5,10 +5,12 @@ import {
   toSimulationResult,
 } from '../src/features/simulation/state'
 import type {
+  AdvanceSimulationResult,
   CaseStep,
+  RecordedSimulationDecision,
   SimulationCase,
+  SimulationSessionSnapshot,
   SimulationState,
-  SimulationTransition,
 } from '../src/features/simulation/types'
 import type { StudentCourse } from '../src/types/database'
 
@@ -79,22 +81,49 @@ function makeCase(
   }
 }
 
+function sessionFor(
+  step: CaseStep,
+  overrides: Partial<SimulationSessionSnapshot> = {},
+): SimulationSessionSnapshot {
+  return {
+    sessionId: 'session-a',
+    caseId: step.caseId,
+    status: 'in_progress',
+    currentStepId: step.id,
+    currentStepKey: step.stepKey,
+    scoreTotal: 0,
+    decisionCount: 0,
+    startedAt: '2026-09-04T20:00:00.000Z',
+    resumed: false,
+    presentationState: step.presentationState,
+    recordedDecision: null,
+    ...overrides,
+  }
+}
+
 function readyState(firstStep: CaseStep = informationStep): SimulationState {
   const loaded = simulationReducer(createInitialSimulationState(), {
     type: 'loadSucceeded',
     simulationCase: makeCase(firstStep.caseId, 'nursing', firstStep),
   })
 
-  return simulationReducer(loaded, { type: 'started' })
+  return simulationReducer(loaded, {
+    type: 'sessionRestored',
+    session: sessionFor(firstStep),
+    currentStep: firstStep,
+  })
 }
 
-function evaluatedState(scoreDelta: number): SimulationState {
-  let state = readyState(decisionStep)
-  state = simulationReducer(state, { type: 'optionSelected', optionId: 'option-a' })
-  state = simulationReducer(state, { type: 'transitionRequested' })
-
-  return simulationReducer(state, {
-    type: 'transitionSucceeded',
+function recordedDecision(
+  scoreTotal: number,
+  scoreDelta = scoreTotal,
+  presentationState: RecordedSimulationDecision['transition']['presentationState'] = null,
+): RecordedSimulationDecision {
+  return {
+    actionId: 'action-a',
+    sessionId: 'session-a',
+    stepId: decisionStep.id,
+    selectedOptionId: 'option-a',
     transition: {
       evaluation: {
         classification: 'acceptable',
@@ -104,16 +133,50 @@ function evaluatedState(scoreDelta: number): SimulationState {
       },
       nextStepKey: 'next-step',
       completed: false,
-      presentationState: null,
+      presentationState,
     },
+    scoreTotal,
+    decisionCount: 1,
+    createdAt: '2026-09-04T20:01:00.000Z',
+    replayed: false,
+  }
+}
+
+function evaluatedState(scoreTotal: number): SimulationState {
+  let state = readyState(decisionStep)
+  state = simulationReducer(state, { type: 'optionSelected', optionId: 'option-a' })
+  state = simulationReducer(state, { type: 'transitionRequested' })
+
+  return simulationReducer(state, {
+    type: 'decisionRecorded',
+    decision: recordedDecision(scoreTotal),
   })
 }
 
-describe('núcleo puro da simulação', () => {
-  it('cria o estado inicial estável e sem conteúdo', () => {
+function advanceResult(
+  overrides: Partial<AdvanceSimulationResult> = {},
+): AdvanceSimulationResult {
+  return {
+    sessionId: 'session-a',
+    status: 'in_progress',
+    currentStepId: 'next-step',
+    currentStepKey: 'next-step',
+    scoreTotal: 4,
+    decisionCount: 2,
+    completedAt: null,
+    previousStepId: decisionStep.id,
+    presentationState: 'recovery',
+    replayed: false,
+    ...overrides,
+  }
+}
+
+describe('núcleo puro da simulação persistente', () => {
+  it('cria o estado inicial estável, sem conteúdo ou sessão', () => {
     expect(createInitialSimulationState()).toMatchObject({
       phase: 'idle',
       simulationCase: null,
+      sessionId: null,
       currentStep: null,
       selectedOptionId: null,
       score: 0,
@@ -122,7 +185,7 @@ describe('núcleo puro da simulação', () => {
     })
   })
 
-  it('representa carregamento e recebe somente a primeira etapa', () => {
+  it('carrega somente a primeira etapa e permanece na introdução', () => {
     const loading = simulationReducer(createInitialSimulationState(), {
       type: 'loadRequested',
     })
@@ -135,44 +198,81 @@ describe('núcleo puro da simulação', () => {
     expect(loading.phase).toBe('loading')
     expect(loaded.phase).toBe('intro')
     expect(loaded.currentStep).toEqual(simulationCase.firstStep)
-    expect(loaded.stepNumber).toBe(1)
+    expect(loaded.sessionId).toBeNull()
   })
 
-  it('inicia o caso sem alterar pontuação ou apresentação', () => {
-    const simulationCase = makeCase('case-start', 'nursing')
+  it('mantém o caso na intro quando o start falha e permite retry', () => {
     const loaded = simulationReducer(createInitialSimulationState(), {
       type: 'loadSucceeded',
-      simulationCase,
+      simulationCase: makeCase('case-start', 'nursing'),
     })
-    const started = simulationReducer(loaded, { type: 'started' })
+    const starting = simulationReducer(loaded, { type: 'sessionStartRequested' })
+    const failed = simulationReducer(starting, {
+      type: 'sessionStartFailed',
+      error: { scope: 'start', message: 'Start failed.' },
+    })
 
-    expect(started.phase).toBe('step')
-    expect(started.score).toBe(0)
-    expect(started.presentationState).toBe('stable')
+    expect(starting.phase).toBe('starting')
+    expect(failed.phase).toBe('intro')
+    expect(failed.simulationCase).toBe(loaded.simulationCase)
+    expect(failed.error?.scope).toBe('start')
   })
 
-  it('resolve etapa informativa sem avaliação e prepara a próxima chave', () => {
-    const transition: SimulationTransition = {
-      evaluation: null,
-      nextStepKey: 'decision-b',
-      completed: false,
-      presentationState: 'warning',
-    }
-    const requested = simulationReducer(readyState(), {
-      type: 'transitionRequested',
+  it('restaura step, score e contagem exclusivamente do snapshot server-side', () => {
+    const loaded = simulationReducer(createInitialSimulationState(), {
+      type: 'loadSucceeded',
+      simulationCase: makeCase('case-a', 'nursing'),
     })
-    const resolved = simulationReducer(requested, {
-      type: 'transitionSucceeded',
-      transition,
+    const restored = simulationReducer(loaded, {
+      type: 'sessionRestored',
+      session: sessionFor(decisionStep, {
+        scoreTotal: 7,
+        decisionCount: 3,
+        resumed: true,
+      }),
+      currentStep: decisionStep,
     })
 
-    expect(requested.phase).toBe('advancing')
-    expect(resolved.pendingTransition?.nextStepKey).toBe('decision-b')
-    expect(resolved.evaluation).toBeNull()
-    expect(resolved.score).toBe(0)
+    expect(restored.phase).toBe('step')
+    expect(restored.sessionId).toBe('session-a')
+    expect(restored.currentStep).toBe(decisionStep)
+    expect(restored.stepNumber).toBe(2)
+    expect(restored.score).toBe(7)
+    expect(restored.decisionCount).toBe(3)
   })
 
-  it('entra em avaliação para uma decisão e exibe feedback no sucesso', () => {
+  it('restaura feedback persistido e impede uma nova seleção local', () => {
+    const decision = recordedDecision(2, 2, 'critical')
+    const loaded = simulationReducer(createInitialSimulationState(), {
+      type: 'loadSucceeded',
+      simulationCase: makeCase('case-a', 'nursing', decisionStep),
+    })
+    const restored = simulationReducer(loaded, {
+      type: 'sessionRestored',
+      session: sessionFor(decisionStep, {
+        scoreTotal: 2,
+        decisionCount: 1,
+        resumed: true,
+        recordedDecision: {
+          selectedOptionId: decision.selectedOptionId,
+          transition: decision.transition,
+        },
+      }),
+      currentStep: decisionStep,
+    })
+    const ignored = simulationReducer(restored, {
+      type: 'optionSelected',
+      optionId: 'option-b',
+    })
+
+    expect(restored.phase).toBe('feedback')
+    expect(restored.selectedOptionId).toBe('option-a')
+    expect(restored.evaluation?.feedback).toBe('Selected feedback.')
+    expect(restored.presentationState).toBe('critical')
+    expect(ignored).toBe(restored)
+  })
+
+  it('entra em avaliação e aplica totais absolutos devolvidos pelo servidor', () => {
     let state = readyState(decisionStep)
     state = simulationReducer(state, { type: 'optionSelected', optionId: 'option-a' })
     state = simulationReducer(state, { type: 'transitionRequested' })
@@ -180,89 +280,53 @@ describe('núcleo puro da simulação', () => {
     expect(state.phase).toBe('evaluating')
 
     state = simulationReducer(state, {
-      type: 'transitionSucceeded',
-      transition: {
-        evaluation: {
-          classification: 'ideal',
-          scoreDelta: 2,
-          feedback: 'Feedback visible.',
-          consequence: 'Consequence visible.',
-        },
-        nextStepKey: 'next-step',
-        completed: false,
-        presentationState: null,
+      type: 'decisionRecorded',
+      decision: {
+        ...recordedDecision(9, 2),
+        decisionCount: 4,
       },
     })
 
     expect(state.phase).toBe('feedback')
-    expect(state.evaluation?.feedback).toBe('Feedback visible.')
-    expect(state.evaluation?.consequence).toBe('Consequence visible.')
-    expect(state.decisionCount).toBe(1)
+    expect(state.score).toBe(9)
+    expect(state.decisionCount).toBe(4)
+    expect(state.evaluation?.scoreDelta).toBe(2)
   })
 
   it.each([
-    ['positivo', 3, 3],
-    ['zero', 0, 0],
-    ['negativo', -2, -2],
-  ])('aplica delta %s sem inferir estado visual', (_label, delta, expected) => {
-    const state = evaluatedState(delta)
+    ['positivo', 3, -20],
+    ['zero', 0, 11],
+    ['negativo', -2, 5],
+  ])(
+    'mantém score server-side no cenário de delta %s sem inferir estado visual',
+    (_label, delta, total) => {
+      let state = readyState(decisionStep)
+      state = simulationReducer(state, {
+        type: 'decisionRecorded',
+        decision: recordedDecision(total, delta, 'critical'),
+      })
 
-    expect(state.score).toBe(expected)
-    expect(state.presentationState).toBe('warning')
-  })
+      expect(state.score).toBe(total)
+      expect(state.presentationState).toBe('critical')
+    },
+  )
 
-  it('aplica estado visual explícito de uma ramificação, independente do score', () => {
-    let state = readyState(decisionStep)
-    state = simulationReducer(state, { type: 'optionSelected', optionId: 'option-b' })
-    state = simulationReducer(state, { type: 'transitionRequested' })
-    state = simulationReducer(state, {
-      type: 'transitionSucceeded',
-      transition: {
-        evaluation: {
-          classification: 'unsafe',
-          scoreDelta: 5,
-          feedback: 'Explicit projection.',
-          consequence: null,
-        },
-        nextStepKey: 'branch-target',
-        completed: false,
-        presentationState: 'critical',
-      },
-    })
-
-    expect(state.score).toBe(5)
-    expect(state.presentationState).toBe('critical')
-    expect(state.pendingTransition?.nextStepKey).toBe('branch-target')
-  })
-
-  it('representa conclusão e produz o resumo mínimo', () => {
-    const state = simulationReducer(evaluatedState(2), { type: 'completed' })
-
-    expect(state.phase).toBe('completed')
-    expect(toSimulationResult(state)).toMatchObject({
-      caseId: 'case-a',
-      score: 2,
-      decisionCount: 1,
-    })
-  })
-
-  it('recupera erro de avaliação preservando a seleção para retry', () => {
+  it('preserva seleção após falha de persistência da decisão', () => {
     let state = readyState(decisionStep)
     state = simulationReducer(state, { type: 'optionSelected', optionId: 'option-a' })
     state = simulationReducer(state, { type: 'transitionRequested' })
     state = simulationReducer(state, {
       type: 'transitionFailed',
-      error: { scope: 'evaluation', message: 'Evaluation failed.' },
+      error: { scope: 'evaluation', message: 'Persistence failed.' },
     })
 
     expect(state.phase).toBe('step')
     expect(state.selectedOptionId).toBe('option-a')
-    expect(state.error?.scope).toBe('evaluation')
+    expect(state.sessionId).toBe('session-a')
   })
 
-  it('recupera erro de avanço sem descartar feedback ou transição', () => {
-    const evaluated = evaluatedState(1)
-    const state = simulationReducer(evaluated, {
+  it('preserva feedback após falha de avanço persistente', () => {
+    const state = simulationReducer(evaluatedState(1), {
       type: 'advanceFailed',
       error: { scope: 'advance', message: 'Advance failed.' },
     })
@@ -272,21 +336,59 @@ describe('núcleo puro da simulação', () => {
     expect(state.pendingTransition?.nextStepKey).toBe('next-step')
   })
 
-  it('reseta seleção, avaliação e erro ao carregar a etapa escolhida', () => {
-    const evaluated = evaluatedState(1)
-    const advanced = simulationReducer(evaluated, {
+  it('usa step e totais confirmados pelo servidor ao avançar', () => {
+    const nextStep: CaseStep = {
+      ...informationStep,
+      id: 'next-step',
+      position: 5,
+      stepKey: 'next-step',
+      presentationState: 'recovery',
+    }
+    const advanced = simulationReducer(evaluatedState(1), {
       type: 'advanceSucceeded',
-      step: { ...informationStep, id: 'next-step', stepKey: 'next-step' },
+      step: nextStep,
+      result: advanceResult(),
     })
 
     expect(advanced.phase).toBe('step')
+    expect(advanced.currentStep).toBe(nextStep)
+    expect(advanced.stepNumber).toBe(5)
+    expect(advanced.score).toBe(4)
+    expect(advanced.decisionCount).toBe(2)
     expect(advanced.selectedOptionId).toBeNull()
     expect(advanced.evaluation).toBeNull()
-    expect(advanced.pendingTransition).toBeNull()
-    expect(advanced.stepNumber).toBe(2)
   })
 
-  it('usa o mesmo estado e reducer para fixtures, ids e cursos diferentes', () => {
+  it('produz resultado mínimo somente após conclusão server-authoritative', () => {
+    const completed = simulationReducer(evaluatedState(2), {
+      type: 'completed',
+      result: advanceResult({
+        status: 'completed',
+        scoreTotal: 8,
+        decisionCount: 3,
+        completedAt: '2026-09-04T20:02:00.000Z',
+      }),
+    })
+
+    expect(completed.phase).toBe('completed')
+    expect(toSimulationResult(completed)).toMatchObject({
+      sessionId: 'session-a',
+      caseId: 'case-a',
+      score: 8,
+      decisionCount: 3,
+    })
+  })
+
+  it('não produz resultado sem sessionId persistido', () => {
+    const loaded = simulationReducer(createInitialSimulationState(), {
+      type: 'loadSucceeded',
+      simulationCase: makeCase('case-a', 'nursing'),
+    })
+
+    expect(toSimulationResult(loaded)).toBeNull()
+  })
+
+  it('usa o mesmo estado e reducer para Nursing e Clinical Analysis', () => {
     const cases = [
       makeCase('fixture-a', 'nursing'),
       makeCase('fixture-b', 'clinical_analysis', laboratoryInformationStep),
@@ -297,15 +399,23 @@ describe('núcleo puro da simulação', () => {
         type: 'loadSucceeded',
         simulationCase,
       })
-      return simulationReducer(loaded, { type: 'started' })
+      return simulationReducer(loaded, {
+        type: 'sessionRestored',
+        session: sessionFor(simulationCase.firstStep, {
+          sessionId: `session-${simulationCase.case.id}`,
+          caseId: simulationCase.case.id,
+          currentStepId: simulationCase.firstStep.id,
+          currentStepKey: simulationCase.firstStep.stepKey,
+        }),
+        currentStep: simulationCase.firstStep,
+      })
     })
 
     expect(states.map((state) => state.phase)).toEqual(['step', 'step'])
-    expect(states.map((state) => state.simulationCase?.case.id)).toEqual([
-      'fixture-a',
-      'fixture-b',
+    expect(states.map((state) => state.sessionId)).toEqual([
+      'session-fixture-a',
+      'session-fixture-b',
     ])
-    expect(states.map((state) => state.score)).toEqual([0, 0])
     expect(states[1].currentStep?.content.laboratory?.stage).toBe('sample')
   })
 })

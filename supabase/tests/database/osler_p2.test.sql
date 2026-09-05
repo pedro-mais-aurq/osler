@@ -178,6 +178,19 @@ values (
   '00000000-0000-4000-8000-000000000002'
 );
 
+insert into public.simulation_sessions (
+  id,
+  user_id,
+  case_id,
+  current_step_id
+)
+values (
+  'aaaaaaaa-0000-4000-8000-000000000001',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  '00000000-0000-4000-8000-000000000002',
+  '00000000-0000-4000-8000-000000000004'
+);
+
 set local role authenticated;
 set local request.jwt.claim.sub = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 set local request.jwt.claim.role = 'authenticated';
@@ -253,7 +266,7 @@ select is(
   'a user cannot see another user session'
 );
 
-select lives_ok(
+select throws_ok(
   $$
     insert into public.simulation_sessions (user_id, case_id)
     values (
@@ -261,7 +274,9 @@ select lives_ok(
       '00000000-0000-4000-8000-000000000002'
     )
   $$,
-  'a user can create a session for themselves and a published case'
+  '42501',
+  null,
+  'P8 blocks direct client session creation'
 );
 
 select is(
@@ -316,7 +331,7 @@ select throws_ok(
   'an action must select an option exposed by its step'
 );
 
-select lives_ok(
+select throws_ok(
   $$
     insert into public.simulation_actions (
       session_id,
@@ -333,7 +348,9 @@ select lives_ok(
     where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
     limit 1
   $$,
-  'a user can record a visible option in their own active session'
+  '42501',
+  null,
+  'P8 blocks direct client action creation even for a visible option'
 );
 
 select throws_ok(

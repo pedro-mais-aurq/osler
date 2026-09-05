@@ -1,6 +1,6 @@
 # OSLER — MVP
 
-Plataforma educacional de simulação clínica interprofissional. Esta versão contém o motor genérico de casos da Parte 5/10, preservando a primeira fatia vertical da Parte 4 e a fundação, o modelo mínimo de dados e o onboarding das Partes 1 a 3.
+Plataforma educacional de simulação clínica interprofissional. Esta versão contém duas áreas profissionais no mesmo motor e persistência server-authoritative de sessões e decisões, concluindo a Parte 8/10 do MVP.
 
 ## Executar localmente
 
@@ -39,9 +39,9 @@ A sessão é persistida pelo SDK do Supabase e o curso pelo banco; por isso ambo
 - Para Enfermagem, `/simulacao` carrega caso publicado, paciente e somente a primeira etapa visível; cada avanço busca apenas a próxima etapa por `position`.
 - Decisões enviam `case_id`, `step_id` e `option_id` à RPC `evaluate_case_step`; o navegador recebe somente classificação, variação de pontuação, feedback e consequência da opção escolhida.
 - Regras e modelo de verdade permanecem privados. O frontend não consulta `case_step_rules` nem `case_truth_models`.
-- Pontuação e decisões ficam apenas no estado local da página. Refresh durante o caso reinicia a tentativa; persistência em `simulation_sessions` e `simulation_actions` pertence à Parte 8.
+- Na entrega P4, pontuação e decisões ainda eram locais. A Parte 8 supera esse contrato e restaura sessão, etapa, score e feedback persistidos após refresh.
 - `/resultado` recebe o resumo mínimo via navigation state. Acesso direto não fabrica resultado.
-- Análises Clínicas continua com estado vazio seguro e o fluxo do professor continua como placeholder.
+- Na entrega P4, Análises Clínicas ainda usava o estado vazio seguro. Desde a P7, os dois cursos percorrem o mesmo motor; o fluxo do professor continua como placeholder.
 
 O caso candidato `seguranca-ao-levantar-no-ambulatorio` está em `draft`, com `clinical_content_validated = false` e revisão humana pendente. Consulte `docs/cases/p4-nursing-case.md`. Ele não aparece para estudantes até que exista revisão clínica e pedagógica independente e uma publicação auditável.
 
@@ -53,9 +53,21 @@ O caso candidato `seguranca-ao-levantar-no-ambulatorio` está em `draft`, com `c
 - `resolve_simulation_transition` valida estudante, curso, caso publicado, etapa, opção, regra privada e destino. Ela suporta fallback linear, ramificação simples para outra etapa do mesmo caso e conclusão explícita.
 - Classificação, pontuação e feedback continuam vindo apenas da regra da opção selecionada. O estado visual `stable | warning | critical | recovery` é uma projeção explícita, independente da pontuação e do modelo de verdade.
 - Tipos de domínio e adapters camelCase vivem em `src/features/simulation`; `src/types/database.ts` não se apresenta como arquivo gerado pela CLI.
-- O motor não grava `simulation_sessions` nem `simulation_actions`. Persistência continua reservada para a Parte 8.
+- A resolução científica do motor permanece independente da persistência. A Parte 8 passa a orquestrar sessões e decisões por RPC sem introduzir lógica de curso no reducer.
 
 Novos casos lineares ou com ramificações simples podem ser adicionados por dados, sem alterar o motor. O mesmo vale para casos de `clinical_analysis`: basta haver conteúdo publicado e autorizado para o curso. A camada visual pode ser substituída na Parte 6 sem mudar o reducer ou o contrato de transição.
+
+## Persistência da Parte 8
+
+- `start_or_resume_simulation_session` cria uma tentativa ou devolve a única sessão `in_progress` do usuário e caso.
+- `record_simulation_decision` usa a regra privada P5, persiste apenas o resultado sanitizado da opção escolhida e atualiza o score na mesma transação.
+- `advance_simulation_session` determina o destino no servidor, persiste `current_step_id` e conclui com `completed_at` server-side.
+- Retries da mesma decisão e do mesmo avanço são idempotentes; índices únicos impedem sessão ativa ou decisão duplicada.
+- O papel `authenticated` não pode inserir/atualizar diretamente as tabelas de execução. RLS mantém a leitura limitada aos próprios registros.
+- Refresh restaura etapa atual, score, contagem e feedback já persistido sem carregar etapas futuras.
+- O resultado mínimo transporta `sessionId`; apresentação do histórico permanece reservada para a P9.
+
+As consultas de validação e o contrato de privacidade estão em `docs/persistence/p8-validation-data.md`.
 
 ## Supabase
 
@@ -71,7 +83,7 @@ Depois de aplicar o schema, gere os tipos completos com `npx supabase@2.116.0 ge
 
 O ambiente local já está configurado com `enable_anonymous_sign_ins = true`. Pendência operacional do ambiente hospedado: **Habilitar anonymous sign-ins no projeto Supabase hospedado.** Faça isso em Auth no projeto OSLER correto; não use uma `service_role` no frontend.
 
-O seed permanece técnico, com o caso `Caso estrutural de desenvolvimento` em `draft` e sem conteúdo clínico validado. A P4 não grava `simulation_sessions` nem `simulation_actions`; sua nova migration adiciona somente a RPC e o conteúdo candidato versionado necessário para revisão.
+O seed permanece técnico, com o caso `Caso estrutural de desenvolvimento` em `draft` e sem conteúdo clínico validado. A entrega P4 não gravava `simulation_sessions` nem `simulation_actions`; a P8 passa a fazê-lo exclusivamente pelas RPCs autorizadas.
 
 ## GitHub Pages
 

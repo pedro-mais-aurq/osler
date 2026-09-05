@@ -8,6 +8,7 @@ export function createInitialSimulationState(): SimulationState {
   return {
     phase: 'idle',
     simulationCase: null,
+    sessionId: null,
     currentStep: null,
     stepNumber: 0,
     selectedOptionId: null,
@@ -44,8 +45,34 @@ export function simulationReducer(
         phase: 'error',
         error: action.error,
       }
-    case 'started':
-      return state.phase === 'intro' ? { ...state, phase: 'step' } : state
+    case 'sessionStartRequested':
+      return state.phase === 'intro'
+        ? { ...state, phase: 'starting', error: null }
+        : state
+    case 'sessionStartFailed':
+      return state.phase === 'starting' || state.phase === 'intro'
+        ? { ...state, phase: 'intro', error: action.error }
+        : state
+    case 'sessionRestored': {
+      const restoredDecision = action.session.recordedDecision
+
+      return {
+        ...state,
+        phase: restoredDecision ? 'feedback' : 'step',
+        sessionId: action.session.sessionId,
+        currentStep: action.currentStep,
+        stepNumber: action.currentStep.position,
+        selectedOptionId: restoredDecision?.selectedOptionId ?? null,
+        evaluation: restoredDecision?.transition.evaluation ?? null,
+        pendingTransition: restoredDecision?.transition ?? null,
+        score: action.session.scoreTotal,
+        decisionCount: action.session.decisionCount,
+        presentationState:
+          restoredDecision?.transition.presentationState ??
+          action.session.presentationState,
+        error: null,
+      }
+    }
     case 'optionSelected':
       if (
         state.phase !== 'step' ||
@@ -72,21 +99,20 @@ export function simulationReducer(
         phase: state.currentStep.type === 'decision' ? 'evaluating' : 'advancing',
         error: null,
       }
-    case 'transitionSucceeded': {
-      const evaluation = action.transition.evaluation
-
+    case 'decisionRecorded':
       return {
         ...state,
-        phase: evaluation ? 'feedback' : 'advancing',
-        evaluation,
-        pendingTransition: action.transition,
-        score: state.score + (evaluation?.scoreDelta ?? 0),
-        decisionCount: state.decisionCount + (evaluation ? 1 : 0),
+        phase: 'feedback',
+        sessionId: action.decision.sessionId,
+        selectedOptionId: action.decision.selectedOptionId,
+        evaluation: action.decision.transition.evaluation,
+        pendingTransition: action.decision.transition,
+        score: action.decision.scoreTotal,
+        decisionCount: action.decision.decisionCount,
         presentationState:
-          action.transition.presentationState ?? state.presentationState,
+          action.decision.transition.presentationState ?? state.presentationState,
         error: null,
       }
-    }
     case 'transitionFailed':
       return { ...state, phase: 'step', error: action.error }
     case 'advanceRequested':
@@ -95,13 +121,16 @@ export function simulationReducer(
       return {
         ...state,
         phase: 'step',
+        sessionId: action.result.sessionId,
         currentStep: action.step,
-        stepNumber: state.stepNumber + 1,
+        stepNumber: action.step.position,
         selectedOptionId: null,
         evaluation: null,
         pendingTransition: null,
+        score: action.result.scoreTotal,
+        decisionCount: action.result.decisionCount,
         presentationState:
-          state.pendingTransition?.presentationState ?? action.step.presentationState,
+          action.result.presentationState ?? action.step.presentationState,
         error: null,
       }
     case 'advanceFailed':
@@ -111,16 +140,26 @@ export function simulationReducer(
         error: action.error,
       }
     case 'completed':
-      return { ...state, phase: 'completed', error: null }
+      return {
+        ...state,
+        phase: 'completed',
+        sessionId: action.result.sessionId,
+        score: action.result.scoreTotal,
+        decisionCount: action.result.decisionCount,
+        presentationState:
+          action.result.presentationState ?? state.presentationState,
+        error: null,
+      }
   }
 }
 
 export function toSimulationResult(state: SimulationState): MinimalSimulationResult | null {
-  if (!state.simulationCase) {
+  if (!state.simulationCase || !state.sessionId) {
     return null
   }
 
   return {
+    sessionId: state.sessionId,
     caseId: state.simulationCase.case.id,
     caseTitle: state.simulationCase.case.title,
     score: state.score,

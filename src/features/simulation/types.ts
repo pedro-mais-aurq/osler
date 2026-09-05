@@ -101,14 +101,64 @@ export interface SimulationTransition {
   presentationState: ClinicalPresentationState | null
 }
 
+export type SimulationSessionStatus =
+  | 'in_progress'
+  | 'completed'
+  | 'abandoned'
+
+export interface RestoredSimulationDecision {
+  selectedOptionId: string
+  transition: SimulationTransition
+}
+
+export interface SimulationSessionSnapshot {
+  sessionId: string
+  caseId: string
+  status: SimulationSessionStatus
+  currentStepId: string
+  currentStepKey: string
+  scoreTotal: number
+  decisionCount: number
+  startedAt: string
+  resumed: boolean
+  presentationState: ClinicalPresentationState
+  recordedDecision: RestoredSimulationDecision | null
+}
+
+export interface RecordedSimulationDecision {
+  actionId: string
+  sessionId: string
+  stepId: string
+  selectedOptionId: string
+  transition: SimulationTransition & { evaluation: StepEvaluation }
+  scoreTotal: number
+  decisionCount: number
+  createdAt: string
+  replayed: boolean
+}
+
+export interface AdvanceSimulationResult {
+  sessionId: string
+  status: SimulationSessionStatus
+  currentStepId: string
+  currentStepKey: string
+  scoreTotal: number
+  decisionCount: number
+  completedAt: string | null
+  previousStepId: string
+  presentationState: ClinicalPresentationState | null
+  replayed: boolean
+}
+
 export interface MinimalSimulationResult {
+  sessionId: string
   caseId: string
   caseTitle: string
   score: number
   decisionCount: number
 }
 
-export type SimulationErrorScope = 'load' | 'evaluation' | 'advance'
+export type SimulationErrorScope = 'load' | 'start' | 'evaluation' | 'advance'
 
 export interface SimulationError {
   scope: SimulationErrorScope
@@ -120,6 +170,7 @@ export type SimulationPhase =
   | 'idle'
   | 'loading'
   | 'intro'
+  | 'starting'
   | 'step'
   | 'evaluating'
   | 'feedback'
@@ -130,6 +181,7 @@ export type SimulationPhase =
 export interface SimulationState {
   phase: SimulationPhase
   simulationCase: SimulationCase | null
+  sessionId: string | null
   currentStep: CaseStep | null
   stepNumber: number
   selectedOptionId: string | null
@@ -146,12 +198,25 @@ export type SimulationAction =
   | { type: 'loadRequested' }
   | { type: 'loadSucceeded'; simulationCase: SimulationCase }
   | { type: 'loadFailed'; error: SimulationError }
-  | { type: 'started' }
+  | { type: 'sessionStartRequested' }
+  | { type: 'sessionStartFailed'; error: SimulationError }
+  | {
+      type: 'sessionRestored'
+      session: SimulationSessionSnapshot
+      currentStep: CaseStep
+    }
   | { type: 'optionSelected'; optionId: string }
   | { type: 'transitionRequested' }
-  | { type: 'transitionSucceeded'; transition: SimulationTransition }
+  | {
+      type: 'decisionRecorded'
+      decision: RecordedSimulationDecision
+    }
   | { type: 'transitionFailed'; error: SimulationError }
   | { type: 'advanceRequested' }
-  | { type: 'advanceSucceeded'; step: CaseStep }
+  | {
+      type: 'advanceSucceeded'
+      step: CaseStep
+      result: AdvanceSimulationResult
+    }
   | { type: 'advanceFailed'; error: SimulationError }
-  | { type: 'completed' }
+  | { type: 'completed'; result: AdvanceSimulationResult }

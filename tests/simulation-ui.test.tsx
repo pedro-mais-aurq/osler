@@ -174,7 +174,10 @@ describe('ClinicalSimulationView', () => {
   it('usa linguagem de início válida para os dois cursos', () => {
     render(
       <ClinicalSimulationView
+        busy={false}
+        errorMessage={null}
         mode="intro"
+        onRetry={vi.fn()}
         onStart={vi.fn()}
         presentationState="stable"
         simulationCase={simulationCase}

@@ -10,7 +10,10 @@ interface ClinicalSimulationViewBaseProps {
 
 interface ClinicalSimulationIntroProps extends ClinicalSimulationViewBaseProps {
   mode: 'intro'
+  busy: boolean
+  errorMessage: string | null
   onStart: () => void
+  onRetry: () => void
 }
 
 interface ClinicalSimulationStepProps extends ClinicalSimulationViewBaseProps {
@@ -66,10 +69,23 @@ export function ClinicalSimulationView(props: ClinicalSimulationViewProps) {
               apresentadas progressivamente.
             </p>
             <div className="clinical-action-row">
-              <button className="primary-action" onClick={props.onStart} type="button">
-                Iniciar caso
+              <button
+                className="primary-action"
+                disabled={props.busy}
+                onClick={props.onStart}
+                type="button"
+              >
+                {props.busy ? 'Iniciando…' : 'Iniciar caso'}
               </button>
             </div>
+            {props.errorMessage ? (
+              <div className="clinical-error-note" role="alert">
+                <p>{props.errorMessage}</p>
+                <button className="text-action" onClick={props.onRetry} type="button">
+                  Tentar novamente
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : (
           <>

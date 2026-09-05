@@ -2,7 +2,7 @@
 
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SimulationEngine } from '../src/features/simulation/SimulationEngine'
 import { ClinicalSimulationView } from '../src/features/simulation/ui/ClinicalSimulationView'
 import { LaboratoryArtifactPanel } from '../src/features/simulation/ui/LaboratoryArtifactPanel'
@@ -11,6 +11,14 @@ import type {
   LaboratoryVisibleData,
   SimulationCase,
 } from '../src/features/simulation/types'
+
+const persistenceMocks = vi.hoisted(() => ({
+  advanceSimulationSession: vi.fn(),
+  recordSimulationDecision: vi.fn(),
+  startOrResumeSimulationSession: vi.fn(),
+}))
+
+vi.mock('../src/services/simulationPersistence', () => persistenceMocks)
 
 const laboratory: LaboratoryVisibleData = {
   stage: 'sample',
@@ -61,6 +69,26 @@ const simulationCase: SimulationCase = {
 }
 
 afterEach(cleanup)
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  persistenceMocks.startOrResumeSimulationSession.mockResolvedValue({
+    ok: true,
+    session: {
+      sessionId: 'laboratory-session',
+      caseId: simulationCase.case.id,
+      status: 'in_progress',
+      currentStepId: baseStep.id,
+      currentStepKey: baseStep.stepKey,
+      scoreTotal: 0,
+      decisionCount: 0,
+      startedAt: '2026-09-04T20:00:00.000Z',
+      resumed: false,
+      presentationState: 'warning',
+      recordedDecision: null,
+    },
+  })
+})
 
 describe('LaboratoryArtifactPanel', () => {
   it('renderiza título, labels e valores visíveis', () => {

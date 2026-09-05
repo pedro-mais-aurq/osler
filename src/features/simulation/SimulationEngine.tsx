@@ -1,6 +1,10 @@
 import { useReducer, useRef } from 'react'
 import { getVisibleCaseStepByKey } from '../../services/cases'
-import { resolveSimulationTransition } from '../../services/simulation'
+import {
+  advanceSimulationSession,
+  recordSimulationDecision,
+  startOrResumeSimulationSession,
+} from '../../services/simulationPersistence'
 import {
   createInitialSimulationState,
   simulationReducer,
@@ -9,9 +13,10 @@ import {
 import { ClinicalSimulationView } from './ui/ClinicalSimulationView'
 import './simulation.css'
 import type {
+  AdvanceSimulationResult,
+  CaseStep,
   MinimalSimulationResult,
   SimulationCase,
-  SimulationTransition,
   SimulationState,
 } from './types'
 
@@ -37,156 +42,272 @@ export function SimulationEngine({
   const completionSent = useRef(false)
   const caseId = simulationCase.case.id
 
-  function complete(transitionState: SimulationState = state) {
-    const result = toSimulationResult(transitionState)
+  function reportDevelopmentError(message: string, cause: unknown) {
+    if (import.meta.env.DEV) {
+      console.error(message, cause)
+    }
+  }
 
-    if (!result || completionSent.current) {
+  async function loadPersistedStep(
+    currentStepId: string,
+    currentStepKey: string,
+  ): Promise<CaseStep | null> {
+    if (
+      simulationCase.firstStep.id === currentStepId &&
+      simulationCase.firstStep.stepKey === currentStepKey
+    ) {
+      return simulationCase.firstStep
+    }
+
+    const stepResult = await getVisibleCaseStepByKey(caseId, currentStepKey)
+
+    if (!stepResult.ok) {
+      reportDevelopmentError(
+        'Falha ao carregar a etapa persistida.',
+        stepResult.cause,
+      )
+      return null
+    }
+
+    return stepResult.step.id === currentStepId ? stepResult.step : null
+  }
+
+  async function start() {
+    if (requestInFlight.current || state.phase !== 'intro') {
+      return
+    }
+
+    requestInFlight.current = true
+    dispatch({ type: 'sessionStartRequested' })
+
+    try {
+      const result = await startOrResumeSimulationSession(caseId)
+
+      if (!result.ok) {
+        reportDevelopmentError('Falha ao iniciar ou retomar sessão.', result.cause)
+        dispatch({
+          type: 'sessionStartFailed',
+          error: { scope: 'start', message: result.message, cause: result.cause },
+        })
+        return
+      }
+
+      const currentStep = await loadPersistedStep(
+        result.session.currentStepId,
+        result.session.currentStepKey,
+      )
+
+      if (!currentStep) {
+        dispatch({
+          type: 'sessionStartFailed',
+          error: {
+            scope: 'start',
+            message: 'Não foi possível restaurar a etapa atual. Tente novamente.',
+            cause: result.session,
+          },
+        })
+        return
+      }
+
+      if (
+        result.session.recordedDecision &&
+        (currentStep.type !== 'decision' ||
+          !currentStep.options.some(
+            (option) =>
+              option.id === result.session.recordedDecision?.selectedOptionId,
+          ))
+      ) {
+        dispatch({
+          type: 'sessionStartFailed',
+          error: {
+            scope: 'start',
+            message: 'A decisão persistida não corresponde à etapa atual.',
+            cause: result.session,
+          },
+        })
+        return
+      }
+
+      dispatch({ type: 'sessionRestored', session: result.session, currentStep })
+    } finally {
+      requestInFlight.current = false
+    }
+  }
+
+  function complete(
+    completion: AdvanceSimulationResult,
+    transitionState: SimulationState = state,
+  ) {
+    if (completionSent.current) {
+      return
+    }
+
+    const completedState = simulationReducer(transitionState, {
+      type: 'completed',
+      result: completion,
+    })
+    const result = toSimulationResult(completedState)
+
+    if (!result) {
+      dispatch({
+        type: 'advanceFailed',
+        error: {
+          scope: 'advance',
+          message: 'A conclusão não retornou uma sessão válida. Tente novamente.',
+        },
+      })
       return
     }
 
     completionSent.current = true
-    dispatch({ type: 'completed' })
+    dispatch({ type: 'completed', result: completion })
     onComplete(result)
   }
 
-  async function advanceFromTransition(
-    transition: SimulationTransition,
-    transitionState: SimulationState = state,
-  ) {
-    if (transition.completed) {
-      complete(transitionState)
+  async function advanceCurrentStep() {
+    const currentStep = state.currentStep
+    const sessionId = state.sessionId
+
+    if (!currentStep || !sessionId || requestInFlight.current) {
       return
     }
 
-    if (!transition.nextStepKey) {
-      dispatch({
-        type: 'advanceFailed',
-        error: {
-          scope: 'advance',
-          message: 'A próxima etapa não foi informada. Tente novamente.',
-        },
-      })
+    if (currentStep.type === 'decision' && !state.evaluation) {
       return
     }
 
+    requestInFlight.current = true
     dispatch({ type: 'advanceRequested' })
-    const nextStepResult = await getVisibleCaseStepByKey(
-      caseId,
-      transition.nextStepKey,
-    )
 
-    if (!nextStepResult.ok) {
-      if (import.meta.env.DEV) {
-        console.error('Falha ao carregar a próxima etapa.', nextStepResult.cause)
+    try {
+      const advanceResult = await advanceSimulationSession(
+        sessionId,
+        currentStep.id,
+      )
+
+      if (!advanceResult.ok) {
+        reportDevelopmentError(
+          'Falha ao persistir avanço da simulação.',
+          advanceResult.cause,
+        )
+        dispatch({
+          type: 'advanceFailed',
+          error: {
+            scope: 'advance',
+            message: advanceResult.message,
+            cause: advanceResult.cause,
+          },
+        })
+        return
+      }
+
+      if (advanceResult.result.status === 'completed') {
+        complete(advanceResult.result)
+        return
+      }
+
+      const nextStepResult = await getVisibleCaseStepByKey(
+        caseId,
+        advanceResult.result.currentStepKey,
+      )
+
+      if (
+        !nextStepResult.ok ||
+        nextStepResult.step.id !== advanceResult.result.currentStepId
+      ) {
+        const cause = nextStepResult.ok
+          ? advanceResult.result
+          : nextStepResult.cause
+        reportDevelopmentError('Falha ao carregar a próxima etapa.', cause)
+        dispatch({
+          type: 'advanceFailed',
+          error: {
+            scope: 'advance',
+            message: nextStepResult.ok
+              ? 'A próxima etapa retornou um formato inesperado. Tente novamente.'
+              : nextStepResult.message,
+            cause,
+          },
+        })
+        return
       }
 
       dispatch({
-        type: 'advanceFailed',
-        error: {
-          scope: 'advance',
-          message: nextStepResult.message,
-          cause: nextStepResult.cause,
-        },
+        type: 'advanceSucceeded',
+        step: nextStepResult.step,
+        result: advanceResult.result,
       })
-      return
+    } finally {
+      requestInFlight.current = false
     }
-
-    dispatch({ type: 'advanceSucceeded', step: nextStepResult.step })
   }
 
-  async function resolveCurrentStep(optionId: string | null) {
+  async function persistDecision(optionId: string) {
     const currentStep = state.currentStep
-
-    if (!currentStep || requestInFlight.current || state.phase !== 'step') {
-      return
-    }
+    const sessionId = state.sessionId
 
     if (
-      (currentStep.type === 'information' && optionId !== null) ||
-      (currentStep.type === 'decision' && optionId === null)
+      !currentStep ||
+      currentStep.type !== 'decision' ||
+      !sessionId ||
+      requestInFlight.current ||
+      state.phase !== 'step'
     ) {
       return
     }
 
     requestInFlight.current = true
     dispatch({ type: 'transitionRequested' })
-    const result = await resolveSimulationTransition(caseId, currentStep.id, optionId)
 
-    if (!result.ok) {
-      requestInFlight.current = false
+    try {
+      const result = await recordSimulationDecision(
+        sessionId,
+        currentStep.id,
+        optionId,
+      )
 
-      if (import.meta.env.DEV) {
-        console.error('Falha ao resolver transição da simulação.', result.cause)
+      if (!result.ok) {
+        reportDevelopmentError('Falha ao persistir decisão.', result.cause)
+        dispatch({
+          type: 'transitionFailed',
+          error: {
+            scope: 'evaluation',
+            message: result.message,
+            cause: result.cause,
+          },
+        })
+        return
       }
 
-      dispatch({
-        type: 'transitionFailed',
-        error: {
-          scope: currentStep.type === 'decision' ? 'evaluation' : 'advance',
-          message: result.message,
-          cause: result.cause,
-        },
-      })
-      return
-    }
-
-    if (
-      (currentStep.type === 'decision' && !result.transition.evaluation) ||
-      (currentStep.type === 'information' && result.transition.evaluation)
-    ) {
+      dispatch({ type: 'decisionRecorded', decision: result.decision })
+    } finally {
       requestInFlight.current = false
-      dispatch({
-        type: 'transitionFailed',
-        error: {
-          scope: currentStep.type === 'decision' ? 'evaluation' : 'advance',
-          message: 'A transição retornou um formato inesperado. Tente novamente.',
-          cause: result.transition,
-        },
-      })
-      return
     }
-
-    dispatch({ type: 'transitionSucceeded', transition: result.transition })
-
-    if (currentStep.type === 'information') {
-      const nextState = simulationReducer(state, {
-        type: 'transitionSucceeded',
-        transition: result.transition,
-      })
-      await advanceFromTransition(result.transition, nextState)
-    }
-
-    requestInFlight.current = false
   }
 
   function selectOption(optionId: string) {
-    dispatch({ type: 'optionSelected', optionId })
-    void resolveCurrentStep(optionId)
-  }
-
-  function continueAfterFeedback() {
-    if (!state.pendingTransition || requestInFlight.current) {
+    if (requestInFlight.current || state.phase !== 'step') {
       return
     }
 
-    requestInFlight.current = true
-    void advanceFromTransition(state.pendingTransition).finally(() => {
-      requestInFlight.current = false
-    })
+    dispatch({ type: 'optionSelected', optionId })
+    void persistDecision(optionId)
   }
 
   function retry() {
-    if (state.error?.scope === 'advance' && state.pendingTransition) {
-      continueAfterFeedback()
+    if (state.error?.scope === 'start') {
+      void start()
+      return
+    }
+
+    if (state.error?.scope === 'advance') {
+      void advanceCurrentStep()
       return
     }
 
     if (state.currentStep?.type === 'decision' && state.selectedOptionId) {
-      void resolveCurrentStep(state.selectedOptionId)
-      return
+      void persistDecision(state.selectedOptionId)
     }
-
-    void resolveCurrentStep(null)
   }
 
   if (state.phase === 'error' || !state.simulationCase || !state.currentStep) {
@@ -196,19 +317,19 @@ export function SimulationEngine({
         <h1 id="simulation-engine-title">Não foi possível abrir o caso</h1>
         <div className="status-message status-error" role="alert">
           <p>{state.error?.message ?? 'O conteúdo deste caso está incompleto.'}</p>
-          <button className="text-action" onClick={retry} type="button">
-            Tentar novamente
-          </button>
         </div>
       </section>
     )
   }
 
-  if (state.phase === 'intro') {
+  if (state.phase === 'intro' || state.phase === 'starting') {
     return (
       <ClinicalSimulationView
+        busy={state.phase === 'starting'}
+        errorMessage={state.error?.message ?? null}
         mode="intro"
-        onStart={() => dispatch({ type: 'started' })}
+        onRetry={retry}
+        onStart={() => void start()}
         presentationState={state.presentationState}
         simulationCase={state.simulationCase}
       />
@@ -217,12 +338,9 @@ export function SimulationEngine({
 
   const busy = state.phase === 'evaluating' || state.phase === 'advancing'
   const canContinueInformation =
-    state.currentStep.type === 'information' && state.pendingTransition === null
+    state.currentStep.type === 'information' && state.phase === 'step'
   const canContinueDecision =
     state.currentStep.type === 'decision' && state.phase === 'feedback'
-  const continueCurrentStep = canContinueDecision
-    ? continueAfterFeedback
-    : () => void resolveCurrentStep(null)
 
   return (
     <ClinicalSimulationView
@@ -230,7 +348,7 @@ export function SimulationEngine({
       errorMessage={state.error?.message ?? null}
       evaluation={state.evaluation}
       mode="step"
-      onContinue={continueCurrentStep}
+      onContinue={() => void advanceCurrentStep()}
       onRetry={retry}
       onSelectOption={selectOption}
       presentationState={state.presentationState}

@@ -9,6 +9,8 @@ function isSimulationResult(value: unknown): value is MinimalSimulationResult {
   const result = value as Record<string, unknown>
 
   return (
+    typeof result.sessionId === 'string' &&
+    result.sessionId.trim() !== '' &&
     typeof result.caseId === 'string' &&
     typeof result.caseTitle === 'string' &&
     typeof result.score === 'number' &&
