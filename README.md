@@ -1,6 +1,6 @@
 # OSLER — MVP
 
-Plataforma educacional de simulação clínica interprofissional. Esta versão contém duas áreas profissionais no mesmo motor e persistência server-authoritative de sessões e decisões, concluindo a Parte 8/10 do MVP.
+Plataforma educacional de simulação clínica interprofissional. Esta versão contém duas áreas profissionais no mesmo motor, persistência server-authoritative e debriefing histórico por tentativa, concluindo a Parte 9/10 do MVP.
 
 ## Executar localmente
 
@@ -40,7 +40,7 @@ A sessão é persistida pelo SDK do Supabase e o curso pelo banco; por isso ambo
 - Decisões enviam `case_id`, `step_id` e `option_id` à RPC `evaluate_case_step`; o navegador recebe somente classificação, variação de pontuação, feedback e consequência da opção escolhida.
 - Regras e modelo de verdade permanecem privados. O frontend não consulta `case_step_rules` nem `case_truth_models`.
 - Na entrega P4, pontuação e decisões ainda eram locais. A Parte 8 supera esse contrato e restaura sessão, etapa, score e feedback persistidos após refresh.
-- `/resultado` recebe o resumo mínimo via navigation state. Acesso direto não fabrica resultado.
+- `/resultado?session=<uuid>` reconstrói um debriefing concluído pelo identificador da tentativa; navigation state não é fonte de autoridade.
 - Na entrega P4, Análises Clínicas ainda usava o estado vazio seguro. Desde a P7, os dois cursos percorrem o mesmo motor; o fluxo do professor continua como placeholder.
 
 O caso candidato `seguranca-ao-levantar-no-ambulatorio` está em `draft`, com `clinical_content_validated = false` e revisão humana pendente. Consulte `docs/cases/p4-nursing-case.md`. Ele não aparece para estudantes até que exista revisão clínica e pedagógica independente e uma publicação auditável.
@@ -65,7 +65,16 @@ Novos casos lineares ou com ramificações simples podem ser adicionados por dad
 - Retries da mesma decisão e do mesmo avanço são idempotentes; índices únicos impedem sessão ativa ou decisão duplicada.
 - O papel `authenticated` não pode inserir/atualizar diretamente as tabelas de execução. RLS mantém a leitura limitada aos próprios registros.
 - Refresh restaura etapa atual, score, contagem e feedback já persistido sem carregar etapas futuras.
-- O resultado mínimo transporta `sessionId`; apresentação do histórico permanece reservada para a P9.
+- O resultado mínimo transporta `sessionId`; a P9 usa esse identificador para consultar o histórico concluído sem recalcular regras atuais.
+
+## Debriefing da Parte 9
+
+- `get_simulation_debrief` entrega somente uma tentativa `completed` pertencente ao estudante autenticado e permanece disponível quando o caso é arquivado.
+- A trajetória é ordenada por `created_at, id` e usa exclusivamente o snapshot de resultado gravado pela P8: escolha, classificação, pontuação, feedback e consequência não são recalculados.
+- O frontend valida uma resposta com whitelist estrita. Modelo de verdade, regras privadas, outras opções e identidade do usuário não integram o contrato.
+- A bibliografia é uma projeção sanitizada de `evidence`, limitada a identificador, autoridade, título, ano, URL HTTP(S) e data de verificação.
+- Pontuação é apresentada como valor bruto e as classificações descrevem somente aquela tentativa; o debriefing não atribui nota nem infere competência profissional geral.
+- Refresh e acesso direto à URL preservam o resultado. UUID inválido, tentativa inexistente, alheia ou ainda em andamento compartilham a mesma resposta segura de indisponibilidade; falhas transitórias oferecem nova tentativa.
 
 As consultas de validação e o contrato de privacidade estão em `docs/persistence/p8-validation-data.md`.
 

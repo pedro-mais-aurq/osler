@@ -115,7 +115,7 @@ export function SimulationPage() {
   }, [navigate, reloadToken, requestedCaseId, setSearchParams])
 
   function handleComplete(result: MinimalSimulationResult) {
-    navigate('/resultado', { state: result })
+    navigate(`/resultado?session=${encodeURIComponent(result.sessionId)}`)
   }
 
   if (pageState.status === 'loading') {

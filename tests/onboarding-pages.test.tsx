@@ -23,6 +23,7 @@ const serviceMocks = vi.hoisted(() => ({
   advanceSimulationSession: vi.fn(),
   getCurrentStudent: vi.fn(),
   getCurrentStudentCourse: vi.fn(),
+  getSimulationDebrief: vi.fn(),
   getSimulationCase: vi.fn(),
   getVisibleCaseStepByKey: vi.fn(),
   recordSimulationDecision: vi.fn(),
@@ -51,6 +52,10 @@ vi.mock('../src/services/simulationPersistence', () => ({
   advanceSimulationSession: serviceMocks.advanceSimulationSession,
   recordSimulationDecision: serviceMocks.recordSimulationDecision,
   startOrResumeSimulationSession: serviceMocks.startOrResumeSimulationSession,
+}))
+
+vi.mock('../src/services/debrief', () => ({
+  getSimulationDebrief: serviceMocks.getSimulationDebrief,
 }))
 
 const session = {
@@ -257,6 +262,53 @@ beforeEach(() => {
       }
     },
   )
+  serviceMocks.getSimulationDebrief.mockImplementation(async () => ({
+    ok: true,
+    debrief: {
+      sessionId: simulationSessionId,
+      caseId: nursingCase.id,
+      caseTitle: nursingCase.title,
+      educationalObjective: nursingCase.educationalObjective,
+      startedAt: '2026-09-04T20:00:00.000Z',
+      completedAt: '2026-09-04T20:02:00.000Z',
+      summary: {
+        scoreTotal: persistedScore,
+        decisionCount: persistedDecisionCount,
+        classifications: {
+          ideal: persistedScore > 0 ? persistedDecisionCount : 0,
+          acceptable: 0,
+          needsImprovement: 0,
+          unsafe: persistedScore < 0 ? persistedDecisionCount : 0,
+        },
+      },
+      decisions:
+        persistedDecisionCount === 0
+          ? []
+          : [
+              {
+                actionId: '60000000-0000-4000-8000-000000000001',
+                stepId: simulationSteps[1].id,
+                stepKey: simulationSteps[1].stepKey,
+                stepTitle: simulationSteps[1].title,
+                position: simulationSteps[1].position,
+                selectedOptionId:
+                  persistedScore < 0 ? 'unsafe-option' : 'ideal-option',
+                selectedOptionLabel:
+                  persistedScore < 0 ? 'Escolha arriscada' : 'Escolha segura',
+                classification: persistedScore < 0 ? 'unsafe' : 'ideal',
+                scoreDelta: persistedScore,
+                feedback:
+                  persistedScore < 0
+                    ? 'Essa escolha cria um risco evitável.'
+                    : 'Boa escolha.',
+                consequence:
+                  persistedScore < 0 ? 'A ação é interrompida.' : null,
+                createdAt: '2026-09-04T20:01:00.000Z',
+              },
+            ],
+      references: [],
+    },
+  }))
 })
 
 describe('entrada e professor', () => {
@@ -532,9 +584,16 @@ describe('fatia vertical da simulação', () => {
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/resultado'))
-    expect(screen.getByRole('heading', { name: 'Resultado' })).toBeTruthy()
-    expect(screen.getByText('2')).toBeTruthy()
-    expect(screen.getByText('1')).toBeTruthy()
+    expect(router.state.location.search).toBe(`?session=${simulationSessionId}`)
+    expect(
+      await screen.findByRole('heading', { name: 'Debriefing da tentativa' }),
+    ).toBeTruthy()
+    expect(screen.getByText('Pontuação bruta').nextElementSibling?.textContent).toBe(
+      '2',
+    )
+    expect(
+      screen.getByText('Decisões avaliadas').nextElementSibling?.textContent,
+    ).toBe('1')
   })
 
   it('mostra feedback não ideal devolvido pelo servidor', async () => {
@@ -551,7 +610,7 @@ describe('fatia vertical da simulação', () => {
     await user.click(await screen.findByRole('button', { name: 'Continuar' }))
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/resultado'))
-    expect(screen.getByText('-1')).toBeTruthy()
+    expect(await screen.findByText('-1')).toBeTruthy()
   })
 
   it('permite tentar novamente quando a RPC falha', async () => {
@@ -601,15 +660,16 @@ describe('fatia vertical da simulação', () => {
 })
 
 describe('resultado e cabeçalho', () => {
-  it('trata acesso direto ao resultado sem estado de navegação', () => {
+  it('trata acesso direto ao resultado sem session id', async () => {
     renderFlow('/resultado')
 
     expect(
-      screen.getByRole('heading', {
-        name: 'Nenhum resultado de simulação disponível',
+      await screen.findByRole('heading', {
+        name: 'Resultado indisponível',
       }),
     ).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Voltar à simulação' })).toBeTruthy()
+    expect(serviceMocks.getSimulationDebrief).not.toHaveBeenCalled()
   })
 
   it('oculta a navegação de desenvolvimento apenas na entrada', async () => {
