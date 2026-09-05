@@ -1,6 +1,7 @@
-import { useReducer, useRef } from 'react'
+import { useReducer, useRef, useState } from 'react'
 import { getVisibleCaseStepByKey } from '../../services/cases'
 import {
+  abandonSimulationSession,
   advanceSimulationSession,
   recordSimulationDecision,
   startOrResumeSimulationSession,
@@ -25,6 +26,21 @@ export interface SimulationEngineProps {
   onComplete: (result: MinimalSimulationResult) => void
 }
 
+const restartConfirmation =
+  'Reiniciar esta tentativa? O progresso desta tentativa será encerrado e uma nova tentativa será iniciada. O histórico registrado será preservado.'
+
+interface RestartState {
+  phase: 'idle' | 'abandoning' | 'starting' | 'error'
+  abandonedSessionId: string | null
+  error: string | null
+}
+
+const initialRestartState: RestartState = {
+  phase: 'idle',
+  abandonedSessionId: null,
+  error: null,
+}
+
 export function SimulationEngine({
   simulationCase,
   onComplete,
@@ -40,6 +56,7 @@ export function SimulationEngine({
   )
   const requestInFlight = useRef(false)
   const completionSent = useRef(false)
+  const [restartState, setRestartState] = useState<RestartState>(initialRestartState)
   const caseId = simulationCase.case.id
 
   function reportDevelopmentError(message: string, cause: unknown) {
@@ -132,6 +149,116 @@ export function SimulationEngine({
     } finally {
       requestInFlight.current = false
     }
+  }
+
+  async function restartAttempt() {
+    const previousSessionId = state.sessionId
+
+    if (!previousSessionId || requestInFlight.current) {
+      return
+    }
+
+    requestInFlight.current = true
+    let abandonedSessionId = restartState.abandonedSessionId
+
+    try {
+      if (abandonedSessionId !== previousSessionId) {
+        setRestartState({
+          phase: 'abandoning',
+          abandonedSessionId: null,
+          error: null,
+        })
+        const abandonResult = await abandonSimulationSession(previousSessionId)
+
+        if (!abandonResult.ok) {
+          reportDevelopmentError(
+            'Falha ao abandonar a tentativa interrompida.',
+            abandonResult.cause,
+          )
+          setRestartState({
+            phase: 'error',
+            abandonedSessionId: null,
+            error: abandonResult.message,
+          })
+          return
+        }
+
+        abandonedSessionId = previousSessionId
+      }
+
+      setRestartState({
+        phase: 'starting',
+        abandonedSessionId,
+        error: null,
+      })
+      const startResult = await startOrResumeSimulationSession(caseId)
+
+      if (!startResult.ok) {
+        reportDevelopmentError(
+          'Falha ao iniciar nova tentativa após abandono.',
+          startResult.cause,
+        )
+        setRestartState({
+          phase: 'error',
+          abandonedSessionId,
+          error: 'A tentativa anterior foi encerrada, mas a nova não pôde ser iniciada. Tente novamente.',
+        })
+        return
+      }
+
+      if (startResult.session.sessionId === previousSessionId) {
+        setRestartState({
+          phase: 'error',
+          abandonedSessionId,
+          error: 'A nova tentativa retornou um formato inesperado. Tente novamente.',
+        })
+        return
+      }
+
+      const currentStep = await loadPersistedStep(
+        startResult.session.currentStepId,
+        startResult.session.currentStepKey,
+      )
+
+      if (
+        !currentStep ||
+        (startResult.session.recordedDecision &&
+          (currentStep.type !== 'decision' ||
+            !currentStep.options.some(
+              (option) =>
+                option.id ===
+                startResult.session.recordedDecision?.selectedOptionId,
+            )))
+      ) {
+        setRestartState({
+          phase: 'error',
+          abandonedSessionId,
+          error: 'A nova tentativa foi criada, mas sua primeira etapa não pôde ser carregada. Tente novamente.',
+        })
+        return
+      }
+
+      completionSent.current = false
+      dispatch({
+        type: 'sessionRestored',
+        session: startResult.session,
+        currentStep,
+      })
+      setRestartState(initialRestartState)
+    } finally {
+      requestInFlight.current = false
+    }
+  }
+
+  function requestRestart() {
+    if (
+      !restartState.abandonedSessionId &&
+      !window.confirm(restartConfirmation)
+    ) {
+      return
+    }
+
+    void restartAttempt()
   }
 
   function complete(
@@ -336,7 +463,13 @@ export function SimulationEngine({
     )
   }
 
-  const busy = state.phase === 'evaluating' || state.phase === 'advancing'
+  const transitionBusy =
+    state.phase === 'evaluating' || state.phase === 'advancing'
+  const restartBusy =
+    restartState.phase === 'abandoning' || restartState.phase === 'starting'
+  const previousAttemptEnded =
+    restartState.abandonedSessionId === state.sessionId
+  const busy = transitionBusy || restartBusy || previousAttemptEnded
   const canContinueInformation =
     state.currentStep.type === 'information' && state.phase === 'step'
   const canContinueDecision =
@@ -349,9 +482,17 @@ export function SimulationEngine({
       evaluation={state.evaluation}
       mode="step"
       onContinue={() => void advanceCurrentStep()}
+      onRestart={requestRestart}
       onRetry={retry}
       onSelectOption={selectOption}
       presentationState={state.presentationState}
+      restartBusy={restartBusy}
+      restartErrorMessage={restartState.error}
+      restartLabel={
+        previousAttemptEnded
+          ? 'Tentar iniciar nova tentativa'
+          : 'Reiniciar tentativa'
+      }
       selectedOptionId={state.selectedOptionId}
       showContinue={canContinueInformation || canContinueDecision}
       simulationCase={state.simulationCase}

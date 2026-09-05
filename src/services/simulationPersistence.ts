@@ -1,9 +1,11 @@
 import {
+  parseAbandonedSimulationSession,
   parseAdvanceSimulationResult,
   parseRecordedSimulationDecision,
   parseSimulationSessionSnapshot,
 } from '../features/simulation/persistenceParsers'
 import type {
+  AbandonedSimulationSession,
   AdvanceSimulationResult,
   RecordedSimulationDecision,
   SimulationSessionSnapshot,
@@ -20,6 +22,10 @@ export type RecordSimulationDecisionResult =
 
 export type AdvanceSimulationSessionResult =
   | { ok: true; result: AdvanceSimulationResult }
+  | { ok: false; message: string; cause?: unknown }
+
+export type AbandonSimulationSessionResult =
+  | { ok: true; session: AbandonedSimulationSession }
   | { ok: false; message: string; cause?: unknown }
 
 function unavailable(message: string) {
@@ -140,4 +146,36 @@ export async function advanceSimulationSession(
   }
 
   return { ok: true, result }
+}
+
+export async function abandonSimulationSession(
+  sessionId: string,
+): Promise<AbandonSimulationSessionResult> {
+  if (!supabase) {
+    return unavailable('Não foi possível reiniciar esta tentativa. Tente novamente.')
+  }
+
+  const { data, error } = await supabase.rpc('abandon_simulation_session', {
+    p_session_id: sessionId,
+  })
+
+  if (error) {
+    return {
+      ok: false,
+      message: 'Não foi possível reiniciar esta tentativa. Tente novamente.',
+      cause: error,
+    }
+  }
+
+  const session = parseAbandonedSimulationSession(data)
+
+  if (!session || session.sessionId !== sessionId) {
+    return {
+      ok: false,
+      message: 'O reinício retornou um formato inesperado. Tente novamente.',
+      cause: data,
+    }
+  }
+
+  return { ok: true, session }
 }

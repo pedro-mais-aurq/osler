@@ -1,5 +1,6 @@
 import { parsePresentationState } from './parsers'
 import type {
+  AbandonedSimulationSession,
   AdvanceSimulationResult,
   RecordedSimulationDecision,
   SimulationSessionSnapshot,
@@ -67,6 +68,15 @@ const advanceResultKeys = new Set([
   'previous_step_id',
   'presentation_state',
   'replayed',
+])
+const abandonedSessionKeys = new Set([
+  'session_id',
+  'case_id',
+  'status',
+  'score_total',
+  'decision_count',
+  'started_at',
+  'abandoned_at',
 ])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -329,5 +339,36 @@ export function parseAdvanceSimulationResult(
     previousStepId: row.previous_step_id,
     presentationState,
     replayed: row.replayed,
+  }
+}
+
+export function parseAbandonedSimulationSession(
+  value: unknown,
+): AbandonedSimulationSession | null {
+  const row = firstRow(value)
+
+  if (
+    !row ||
+    !hasOnlyKeys(row, abandonedSessionKeys) ||
+    !isNonEmptyString(row.session_id) ||
+    !isNonEmptyString(row.case_id) ||
+    row.status !== 'abandoned' ||
+    !isInteger(row.score_total) ||
+    !isInteger(row.decision_count) ||
+    row.decision_count < 0 ||
+    !isNonEmptyString(row.started_at) ||
+    !isNonEmptyString(row.abandoned_at)
+  ) {
+    return null
+  }
+
+  return {
+    sessionId: row.session_id,
+    caseId: row.case_id,
+    status: 'abandoned',
+    scoreTotal: row.score_total,
+    decisionCount: row.decision_count,
+    startedAt: row.started_at,
+    abandonedAt: row.abandoned_at,
   }
 }

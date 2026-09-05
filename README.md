@@ -1,6 +1,6 @@
 # OSLER — MVP
 
-Plataforma educacional de simulação clínica interprofissional. Esta versão contém duas áreas profissionais no mesmo motor, persistência server-authoritative e debriefing histórico por tentativa, concluindo a Parte 9/10 do MVP.
+Plataforma educacional de simulação clínica interprofissional. Esta versão contém duas áreas profissionais no mesmo motor, persistência server-authoritative, debriefing histórico por tentativa e o fluxo de reinício seguro, concluindo a Parte 10/10 do MVP.
 
 ## Executar localmente
 
@@ -55,7 +55,7 @@ O caso candidato `seguranca-ao-levantar-no-ambulatorio` está em `draft`, com `c
 - Tipos de domínio e adapters camelCase vivem em `src/features/simulation`; `src/types/database.ts` não se apresenta como arquivo gerado pela CLI.
 - A resolução científica do motor permanece independente da persistência. A Parte 8 passa a orquestrar sessões e decisões por RPC sem introduzir lógica de curso no reducer.
 
-Novos casos lineares ou com ramificações simples podem ser adicionados por dados, sem alterar o motor. O mesmo vale para casos de `clinical_analysis`: basta haver conteúdo publicado e autorizado para o curso. A camada visual pode ser substituída na Parte 6 sem mudar o reducer ou o contrato de transição.
+Novos casos lineares ou com ramificações simples podem ser adicionados por dados, sem alterar o motor. O mesmo vale para casos de `clinical_analysis`: basta haver conteúdo publicado e autorizado para o curso. A camada visual introduzida na Parte 6 permanece separada do reducer e do contrato de transição.
 
 ## Persistência da Parte 8
 
@@ -75,6 +75,14 @@ Novos casos lineares ou com ramificações simples podem ser adicionados por dad
 - A bibliografia é uma projeção sanitizada de `evidence`, limitada a identificador, autoridade, título, ano, URL HTTP(S) e data de verificação.
 - Pontuação é apresentada como valor bruto e as classificações descrevem somente aquela tentativa; o debriefing não atribui nota nem infere competência profissional geral.
 - Refresh e acesso direto à URL preservam o resultado. UUID inválido, tentativa inexistente, alheia ou ainda em andamento compartilham a mesma resposta segura de indisponibilidade; falhas transitórias oferecem nova tentativa.
+
+## Estabilidade da Parte 10
+
+- `abandon_simulation_session` encerra somente uma tentativa `in_progress` pertencente ao estudante autenticado. Score, ações e timestamps históricos são preservados; a RPC P8 de start/resume cria a tentativa seguinte.
+- A ação `Reiniciar tentativa` pede confirmação e recupera falhas transitórias sem `DELETE` nem escrita direta nas tabelas de execução. Tentativas concluídas continuam sendo refeitas pela ação do debriefing.
+- `PatientPanel` prioriza `visual_ref`; na ausência de referência explícita, `ela/dela` usa o SVG feminino neutro e qualquer pronome sem mapeamento usa a arte neutra. O mapeamento é exclusivamente visual e respeita `BASE_URL`.
+- O Vitest foi atualizado dentro da major 3 para eliminar o advisory crítico presente em `3.2.4`; `npm audit` integra a checagem final de segurança da entrega.
+- O roteiro reproduzível de preparação, dois fluxos, reset, estados e plano B está em `docs/demo/p10-demo-runbook.md`.
 
 As consultas de validação e o contrato de privacidade estão em `docs/persistence/p8-validation-data.md`.
 
@@ -96,7 +104,7 @@ O seed permanece técnico, com o caso `Caso estrutural de desenvolvimento` em `d
 
 ## GitHub Pages
 
-O workflow `.github/workflows/deploy-pages.yml` valida ambiente, tipagem e build antes de publicar. Configure no repositório:
+O workflow `.github/workflows/deploy-pages.yml` instala pelo lockfile e valida testes, tipagem e build antes de publicar. Configure no repositório:
 
 - `Settings → Pages → Source → GitHub Actions`;
 - secret `VITE_SUPABASE_URL`;

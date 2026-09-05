@@ -150,6 +150,16 @@ export interface AdvanceSimulationResult {
   replayed: boolean
 }
 
+export interface AbandonedSimulationSession {
+  sessionId: string
+  caseId: string
+  status: 'abandoned'
+  scoreTotal: number
+  decisionCount: number
+  startedAt: string
+  abandonedAt: string
+}
+
 export interface MinimalSimulationResult {
   sessionId: string
   caseId: string

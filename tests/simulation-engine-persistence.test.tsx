@@ -11,6 +11,7 @@ import type {
 } from '../src/features/simulation/types'
 
 const serviceMocks = vi.hoisted(() => ({
+  abandonSimulationSession: vi.fn(),
   advanceSimulationSession: vi.fn(),
   getVisibleCaseStepByKey: vi.fn(),
   recordSimulationDecision: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock('../src/services/cases', () => ({
 }))
 
 vi.mock('../src/services/simulationPersistence', () => ({
+  abandonSimulationSession: serviceMocks.abandonSimulationSession,
   advanceSimulationSession: serviceMocks.advanceSimulationSession,
   recordSimulationDecision: serviceMocks.recordSimulationDecision,
   startOrResumeSimulationSession: serviceMocks.startOrResumeSimulationSession,
@@ -151,6 +153,18 @@ beforeEach(() => {
   serviceMocks.startOrResumeSimulationSession.mockResolvedValue({
     ok: true,
     session: sessionSnapshot(),
+  })
+  serviceMocks.abandonSimulationSession.mockResolvedValue({
+    ok: true,
+    session: {
+      sessionId,
+      caseId,
+      status: 'abandoned',
+      scoreTotal: 0,
+      decisionCount: 0,
+      startedAt: '2026-09-04T20:00:00.000Z',
+      abandonedAt: '2026-09-04T20:03:00.000Z',
+    },
   })
   serviceMocks.getVisibleCaseStepByKey.mockImplementation(
     async (_caseId: string, stepKey: string) => ({
@@ -372,5 +386,90 @@ describe('SimulationEngine com persistência P8', () => {
         decisionCount: 3,
       }),
     )
+  })
+
+  it('cancela o reinício sem abandonar a tentativa', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    render(<SimulationEngine onComplete={vi.fn()} simulationCase={simulationCase} />)
+    await user.click(screen.getByRole('button', { name: 'Iniciar caso' }))
+    await user.click(
+      await screen.findByRole('button', { name: 'Reiniciar tentativa' }),
+    )
+
+    expect(confirm).toHaveBeenCalledWith(
+      'Reiniciar esta tentativa? O progresso desta tentativa será encerrado e uma nova tentativa será iniciada. O histórico registrado será preservado.',
+    )
+    expect(serviceMocks.abandonSimulationSession).not.toHaveBeenCalled()
+    confirm.mockRestore()
+  })
+
+  it('abandona a tentativa e inicia outra pelo mesmo engine', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const newSessionId = 'session-new-attempt'
+    serviceMocks.startOrResumeSimulationSession
+      .mockResolvedValueOnce({ ok: true, session: sessionSnapshot() })
+      .mockResolvedValueOnce({
+        ok: true,
+        session: sessionSnapshot(informationStep, { sessionId: newSessionId }),
+      })
+
+    render(<SimulationEngine onComplete={vi.fn()} simulationCase={simulationCase} />)
+    await user.click(screen.getByRole('button', { name: 'Iniciar caso' }))
+    await user.click(
+      await screen.findByRole('button', { name: 'Reiniciar tentativa' }),
+    )
+
+    await waitFor(() =>
+      expect(serviceMocks.startOrResumeSimulationSession).toHaveBeenCalledTimes(2),
+    )
+    expect(serviceMocks.abandonSimulationSession).toHaveBeenCalledWith(sessionId)
+    expect(
+      screen.getByRole('heading', { name: informationStep.title! }),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Reiniciar tentativa' })).toBeTruthy()
+    confirm.mockRestore()
+  })
+
+  it('retenta somente a criação se o abandono já foi persistido', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    serviceMocks.startOrResumeSimulationSession
+      .mockResolvedValueOnce({ ok: true, session: sessionSnapshot() })
+      .mockResolvedValueOnce({
+        ok: false,
+        message: 'Falha temporária.',
+        cause: new Error('network'),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        session: sessionSnapshot(informationStep, {
+          sessionId: 'session-after-retry',
+        }),
+      })
+
+    render(<SimulationEngine onComplete={vi.fn()} simulationCase={simulationCase} />)
+    await user.click(screen.getByRole('button', { name: 'Iniciar caso' }))
+    await user.click(
+      await screen.findByRole('button', { name: 'Reiniciar tentativa' }),
+    )
+
+    expect(
+      await screen.findByText(/a tentativa anterior foi encerrada/i),
+    ).toBeTruthy()
+    await user.click(
+      screen.getByRole('button', { name: 'Tentar iniciar nova tentativa' }),
+    )
+
+    await waitFor(() =>
+      expect(serviceMocks.startOrResumeSimulationSession).toHaveBeenCalledTimes(3),
+    )
+    expect(serviceMocks.abandonSimulationSession).toHaveBeenCalledTimes(1)
+    expect(confirm).toHaveBeenCalledTimes(1)
+    consoleError.mockRestore()
+    confirm.mockRestore()
   })
 })

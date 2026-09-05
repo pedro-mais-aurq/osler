@@ -8,6 +8,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { AppShell } from '../src/components/AppShell'
 import { CourseSelectionPage } from '../src/pages/CourseSelectionPage'
 import { EntryPage } from '../src/pages/EntryPage'
+import { NotFoundPage } from '../src/pages/NotFoundPage'
 import { ResultPage } from '../src/pages/ResultPage'
 import { SimulationPage } from '../src/pages/SimulationPage'
 import { TeacherUnavailablePage } from '../src/pages/TeacherUnavailablePage'
@@ -19,6 +20,7 @@ Object.defineProperty(globalThis, 'AbortController', {
 })
 
 const serviceMocks = vi.hoisted(() => ({
+  abandonSimulationSession: vi.fn(),
   ensureAnonymousStudentSession: vi.fn(),
   advanceSimulationSession: vi.fn(),
   getCurrentStudent: vi.fn(),
@@ -49,6 +51,7 @@ vi.mock('../src/services/cases', () => ({
 }))
 
 vi.mock('../src/services/simulationPersistence', () => ({
+  abandonSimulationSession: serviceMocks.abandonSimulationSession,
   advanceSimulationSession: serviceMocks.advanceSimulationSession,
   recordSimulationDecision: serviceMocks.recordSimulationDecision,
   startOrResumeSimulationSession: serviceMocks.startOrResumeSimulationSession,
@@ -169,6 +172,7 @@ function renderFlow(initialEntry = '/') {
       { path: '/curso', element: <CourseSelectionPage /> },
       { path: '/simulacao', element: <SimulationPage /> },
       { path: '/resultado', element: <ResultPage /> },
+      { path: '*', element: <NotFoundPage /> },
     ],
     { initialEntries: [initialEntry] },
   )
@@ -660,6 +664,13 @@ describe('fatia vertical da simulação', () => {
 })
 
 describe('resultado e cabeçalho', () => {
+  it('trata rota inexistente com 404 e retorno seguro', () => {
+    renderFlow('/rota-inexistente')
+
+    expect(screen.getByRole('heading', { name: 'Rota não encontrada' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Voltar para a entrada' })).toBeTruthy()
+  })
+
   it('trata acesso direto ao resultado sem session id', async () => {
     renderFlow('/resultado')
 
@@ -692,6 +703,7 @@ describe('resultado e cabeçalho', () => {
     const logo = screen.getByRole('link', { name: 'OSLER — ir para a entrada' }).querySelector('img')
     expect(logo?.className).toBe('brand-logo')
     expect(logo?.getAttribute('style')).toBeNull()
+    expect(screen.getByText('MVP · Parte 10/10')).toBeTruthy()
 
     await router.navigate('/simulacao')
     await waitFor(() =>

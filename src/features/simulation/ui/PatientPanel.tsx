@@ -1,28 +1,9 @@
 import { useState } from 'react'
 import type { ClinicalPresentationState, SimulationPatient } from '../types'
-
-const fallbackVisualRef = 'patients/patient-neutral.svg'
-
-function isSafeRelativeAssetPath(value: string) {
-  return (
-    value.length > 0 &&
-    !value.includes('..') &&
-    !value.includes('\\') &&
-    !/^[a-z][a-z\d+.-]*:/i.test(value)
-  )
-}
-
-export function resolvePatientVisualRef(visualRef: string | null) {
-  const candidate = visualRef?.trim().replace(/^\/+/, '') ?? ''
-  const relativePath = isSafeRelativeAssetPath(candidate)
-    ? candidate
-    : fallbackVisualRef
-  const baseUrl = import.meta.env.BASE_URL.endsWith('/')
-    ? import.meta.env.BASE_URL
-    : `${import.meta.env.BASE_URL}/`
-
-  return `${baseUrl}${relativePath}`
-}
+import {
+  resolveNeutralPatientVisualRef,
+  resolvePatientVisualRef,
+} from './patientVisuals'
 
 function PatientFacts({ patient }: { patient: SimulationPatient }) {
   const hasDetails =
@@ -64,9 +45,9 @@ export interface PatientPanelProps {
 }
 
 export function PatientPanel({ patient, presentationState }: PatientPanelProps) {
-  const fallbackSource = resolvePatientVisualRef(null)
+  const fallbackSource = resolveNeutralPatientVisualRef()
   const [imageSource, setImageSource] = useState(() =>
-    resolvePatientVisualRef(patient.visualRef),
+    resolvePatientVisualRef(patient.visualRef, patient.pronouns),
   )
 
   return (
@@ -102,3 +83,4 @@ export function PatientPanel({ patient, presentationState }: PatientPanelProps) 
 }
 
 export { PatientFacts }
+export { resolvePatientVisualRef } from './patientVisuals'

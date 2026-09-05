@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { readFileSync } from 'node:fs'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -8,6 +9,10 @@ import {
   PatientPanel,
   resolvePatientVisualRef,
 } from '../src/features/simulation/ui/PatientPanel'
+import {
+  femalePatientVisualRef,
+  neutralPatientVisualRef,
+} from '../src/features/simulation/ui/patientVisuals'
 import { PresentationStateBadge } from '../src/features/simulation/ui/PresentationStateBadge'
 import { WorkspaceTabs } from '../src/features/simulation/ui/WorkspaceTabs'
 import type {
@@ -71,15 +76,36 @@ describe('PatientPanel', () => {
     expect(screen.getByTestId('patient-visual').getAttribute('alt')).toBe('')
   })
 
-  it('resolve visualRef com BASE_URL e usa a ilustração neutra como fallback', () => {
-    expect(resolvePatientVisualRef('patients/patient-fixture.svg')).toBe(
+  it('faz visualRef explícito vencer e respeita BASE_URL', () => {
+    expect(resolvePatientVisualRef('patients/patient-fixture.svg', 'ela/dela')).toBe(
       `${import.meta.env.BASE_URL}patients/patient-fixture.svg`,
     )
-    expect(resolvePatientVisualRef(null)).toBe(
-      `${import.meta.env.BASE_URL}patients/patient-neutral.svg`,
+  })
+
+  it('usa o fallback feminino somente para ela/dela sem visualRef', () => {
+    expect(resolvePatientVisualRef(null, 'ela/dela')).toBe(
+      `${import.meta.env.BASE_URL}${femalePatientVisualRef}`,
     )
-    expect(resolvePatientVisualRef('../private.svg')).toBe(
-      `${import.meta.env.BASE_URL}patients/patient-neutral.svg`,
+    expect(resolvePatientVisualRef(null, ' ELA/DELA ')).toBe(
+      `${import.meta.env.BASE_URL}${femalePatientVisualRef}`,
+    )
+  })
+
+  it.each([['pronome desconhecido'], [null]])(
+    'usa o fallback neutro para pronouns %s',
+    (pronouns) => {
+      expect(resolvePatientVisualRef(null, pronouns)).toBe(
+        `${import.meta.env.BASE_URL}${neutralPatientVisualRef}`,
+      )
+    },
+  )
+
+  it('recusa visualRef inválido e escolhe o fallback seguro por pronome', () => {
+    expect(resolvePatientVisualRef('../private.svg', 'ela/dela')).toBe(
+      `${import.meta.env.BASE_URL}${femalePatientVisualRef}`,
+    )
+    expect(resolvePatientVisualRef('https://example.test/patient.svg', null)).toBe(
+      `${import.meta.env.BASE_URL}${neutralPatientVisualRef}`,
     )
   })
 
@@ -90,6 +116,20 @@ describe('PatientPanel', () => {
     fireEvent.error(image)
 
     expect(image.src).toContain('/patients/patient-neutral.svg')
+  })
+})
+
+describe('SVG feminino', () => {
+  it('permanece leve, estático e sem conteúdo externo executável', () => {
+    const svg = readFileSync(
+      'public/patients/patient-female-neutral.svg',
+      'utf8',
+    )
+
+    expect(svg).toContain('viewBox="0 0 420 520"')
+    expect(Buffer.byteLength(svg)).toBeLessThan(5_000)
+    expect(svg).not.toMatch(/<script|foreignObject|onload\s*=|onclick\s*=/i)
+    expect(svg).not.toMatch(/(?:href|src)\s*=\s*["'](?:https?:|data:|\/\/)/i)
   })
 })
 

@@ -29,6 +29,10 @@ interface ClinicalSimulationStepProps extends ClinicalSimulationViewBaseProps {
   onSelectOption: (optionId: string) => void
   onContinue: () => void
   onRetry: () => void
+  onRestart?: () => void
+  restartBusy?: boolean
+  restartErrorMessage?: string | null
+  restartLabel?: string
 }
 
 export type ClinicalSimulationViewProps =
@@ -86,6 +90,7 @@ export function ClinicalSimulationView(props: ClinicalSimulationViewProps) {
                 </button>
               </div>
             ) : null}
+
           </div>
         ) : (
           <>
@@ -118,6 +123,12 @@ export function ClinicalSimulationView(props: ClinicalSimulationViewProps) {
               </div>
             ) : null}
 
+            {props.restartErrorMessage ? (
+              <div className="clinical-error-note" role="alert">
+                <p>{props.restartErrorMessage}</p>
+              </div>
+            ) : null}
+
             {props.showContinue ? (
               <div className="clinical-action-row">
                 <button
@@ -127,6 +138,24 @@ export function ClinicalSimulationView(props: ClinicalSimulationViewProps) {
                   type="button"
                 >
                   Continuar
+                </button>
+              </div>
+            ) : null}
+
+            {props.onRestart ? (
+              <div className="clinical-reset-row">
+                <button
+                  className="secondary-action"
+                  disabled={
+                    props.restartBusy ||
+                    (props.busy && !props.restartErrorMessage)
+                  }
+                  onClick={props.onRestart}
+                  type="button"
+                >
+                  {props.restartBusy
+                    ? 'Reiniciando…'
+                    : (props.restartLabel ?? 'Reiniciar tentativa')}
                 </button>
               </div>
             ) : null}

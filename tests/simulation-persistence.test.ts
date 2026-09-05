@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  parseAbandonedSimulationSession,
   parseAdvanceSimulationResult,
   parseRecordedSimulationDecision,
   parseSimulationSessionSnapshot,
@@ -78,6 +79,16 @@ const advanceRow = {
   previous_step_id: 'step-b',
   presentation_state: 'recovery',
   replayed: false,
+}
+
+const abandonedRow = {
+  session_id: 'session-a',
+  case_id: 'case-a',
+  status: 'abandoned',
+  score_total: 5,
+  decision_count: 2,
+  started_at: '2026-09-04T20:00:00.000Z',
+  abandoned_at: '2026-09-04T20:03:00.000Z',
 }
 
 beforeEach(() => {
@@ -204,6 +215,28 @@ describe('parsers de persistência', () => {
   ])('rejeita avanço com %s', (_label, change) => {
     expect(parseAdvanceSimulationResult([{ ...advanceRow, ...change }])).toBeNull()
   })
+
+  it('normaliza somente o snapshot sanitizado da sessão abandonada', () => {
+    expect(parseAbandonedSimulationSession([abandonedRow])).toEqual({
+      sessionId: 'session-a',
+      caseId: 'case-a',
+      status: 'abandoned',
+      scoreTotal: 5,
+      decisionCount: 2,
+      startedAt: '2026-09-04T20:00:00.000Z',
+      abandonedAt: '2026-09-04T20:03:00.000Z',
+    })
+  })
+
+  it.each([
+    ['status em andamento', { status: 'in_progress' }],
+    ['score inválido', { score_total: '5' }],
+    ['contagem negativa', { decision_count: -1 }],
+    ['timestamp ausente', { abandoned_at: null }],
+    ['campo privado inesperado', { actions: [] }],
+  ])('rejeita abandono com %s', (_label, change) => {
+    expect(parseAbandonedSimulationSession([{ ...abandonedRow, ...change }])).toBeNull()
+  })
 })
 
 describe('serviço de persistência', () => {
@@ -255,6 +288,20 @@ describe('serviço de persistência', () => {
       p_step_id: 'step-b',
     })
     expect(result.ok && result.result.currentStepKey).toBe('step-c')
+  })
+
+  it('abandona enviando somente o sessionId', async () => {
+    supabaseMocks.rpc.mockResolvedValue({ data: [abandonedRow], error: null })
+    const { abandonSimulationSession } = await import(
+      '../src/services/simulationPersistence'
+    )
+
+    const result = await abandonSimulationSession('session-a')
+
+    expect(supabaseMocks.rpc).toHaveBeenCalledWith('abandon_simulation_session', {
+      p_session_id: 'session-a',
+    })
+    expect(result.ok && result.session.status).toBe('abandoned')
   })
 
   it('rejeita resposta com IDs diferentes da requisição', async () => {

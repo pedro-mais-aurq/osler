@@ -13,6 +13,7 @@ import type {
 } from '../src/features/simulation/types'
 
 const persistenceMocks = vi.hoisted(() => ({
+  abandonSimulationSession: vi.fn(),
   advanceSimulationSession: vi.fn(),
   recordSimulationDecision: vi.fn(),
   startOrResumeSimulationSession: vi.fn(),
@@ -88,6 +89,18 @@ beforeEach(() => {
       recordedDecision: null,
     },
   })
+  persistenceMocks.abandonSimulationSession.mockResolvedValue({
+    ok: true,
+    session: {
+      sessionId: 'laboratory-session',
+      caseId: simulationCase.case.id,
+      status: 'abandoned',
+      scoreTotal: 0,
+      decisionCount: 0,
+      startedAt: '2026-09-04T20:00:00.000Z',
+      abandonedAt: '2026-09-04T20:03:00.000Z',
+    },
+  })
 })
 
 describe('LaboratoryArtifactPanel', () => {
@@ -115,6 +128,10 @@ describe('conteúdo laboratorial na prancheta compartilhada', () => {
     expect(
       screen.getByRole('button', { name: 'Preservar a rastreabilidade' }),
     ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Reiniciar tentativa' })).toBeTruthy()
+    expect(
+      (screen.getByTestId('patient-visual') as HTMLImageElement).src,
+    ).toContain('/patients/patient-female-neutral.svg')
   })
 
   it('mostra a aba Amostra somente quando o payload existe', () => {

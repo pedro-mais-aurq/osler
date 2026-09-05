@@ -733,6 +733,26 @@
   outline: none;
 }
 
+.clinical-reset-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.8rem;
+}
+
+.clinical-reset-row .secondary-action {
+  min-height: 2.6rem;
+  border-color: #aebfba;
+  border-radius: 0.3rem;
+  color: var(--osler-ink);
+  background: rgb(255 253 247 / 58%);
+}
+
+.clinical-reset-row .secondary-action:hover:not(:disabled),
+.clinical-reset-row .secondary-action:focus-visible {
+  border-color: var(--osler-sage);
+  background: var(--osler-surface);
+}
+
 @keyframes clinical-panel-in {
   from {
     opacity: 0;
@@ -883,7 +903,9 @@
   }
 
   .clinical-action-row,
-  .clinical-action-row .primary-action {
+  .clinical-action-row .primary-action,
+  .clinical-reset-row,
+  .clinical-reset-row .secondary-action {
     width: 100%;
   }
 }

@@ -46,7 +46,7 @@ export function AppShell({ children }: PropsWithChildren) {
       <main className="app-main">{children}</main>
 
       <footer className="app-footer">
-        MVP · Parte 9/10
+        MVP · Parte 10/10
       </footer>
     </div>
   )
