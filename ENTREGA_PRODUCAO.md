@@ -4,7 +4,7 @@ Execute `npm ci`, configure `.env` a partir de `.env.example` e use `npm run dev
 
 O acesso de professor e aluno usa Google OAuth com PKCE. Nenhuma conta fictícia é disponibilizada no modo conectado. Casos, turmas, matrículas, decisões, tentativas e debriefings usam os serviços e RPCs do Supabase; não existe fallback automático para armazenamento local quando a conexão falta.
 
-Aplique as migrations de `supabase/migrations` na ordem registrada, sem repetir migrations já aplicadas. As duas últimas implementam a gestão docente e a visibilidade pública/privada com prática sem turma. As tabelas possuem RLS. Autorize os e-mails docentes na lista privada conforme `docs/teaching/GUIA_PROFESSOR.md`.
+Aplique as migrations de `supabase/migrations` na ordem registrada, sem repetir migrations já aplicadas. As duas últimas implementam a gestão docente e a visibilidade pública/privada com prática sem turma. As tabelas possuem RLS. Aplique também `20261031133010_self_selected_teacher_and_subject.sql`: qualquer conta Google confirmada pode escolher professor, sem aprovação avulsa. A escolha é persistida no servidor e a aba Matéria lecionada salva a disciplina do professor. Cada docente continua restrito às próprias turmas e casos.
 
 Habilite o provedor Google no Supabase usando o Client ID e o Client Secret do Google Cloud. Cadastre o callback indicado pelo Supabase no Google e a URL da aplicação terminada em `/auth/callback` na lista de retornos permitidos. Nunca inclua o Client Secret ou a chave service_role no frontend.
 

@@ -51,11 +51,12 @@ describe('entrada conectada com Google', () => {
     expect(sessionStorage.getItem('osler.login.course')).toBeNull()
   })
 
-  it('respeita o papel retornado pelo servidor ao voltar do Google', async () => {
-    mocks.identity.mockResolvedValue({ ok: true, value: { role: 'student' } })
+  it('ativa a escolha docente no servidor e abre o painel sem formação', async () => {
+    mocks.identity.mockResolvedValue({ ok: true, value: { role: 'teacher' } })
     sessionStorage.setItem('osler.login.destination', 'teacher')
     const router = open('/auth/callback')
-    await waitFor(() => expect(router.state.location.pathname).toBe('/curso'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/professor'))
+    expect(mocks.identity).toHaveBeenCalledWith('teacher')
     expect(mocks.course).not.toHaveBeenCalled()
   })
 })

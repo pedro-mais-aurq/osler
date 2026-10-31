@@ -1,3 +1,4 @@
+import { TeachingSubject } from '../features/teaching/TeachingSubject'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import * as service from '../services/teaching'
@@ -117,9 +118,7 @@ export function TeacherPage() {
     )
   if (!teacher)
     return (
-      <AccessState
-        error={`O e-mail ${portal.identity.email} ainda não tem acesso docente. Solicite a liberação à instituição ou entre na área do aluno.`}
-      />
+      <section className="page-card"><h1>Ensine com a Osler</h1><p>Escolha o perfil de professor para criar suas turmas e casos clínicos.</p><button className="primary-action" disabled={busy} onClick={async () => { setBusy(true); const result = await service.getPortalIdentity('teacher'); if (result.ok) portal.refresh(); else setError(result.message); setBusy(false) }}>Escolher ser professor</button>{error && <p role="alert">{error}</p>}</section>
     )
   if (!workspace)
     return (
@@ -256,6 +255,7 @@ export function TeacherPage() {
   )
   return (
     <PortalLayout identity={portal.identity}>
+      {section === 'materia' && <TeachingSubject initial={portal.identity.subject} />}
       {error && (
         <div className="teaching-error" role="alert">
           {error}

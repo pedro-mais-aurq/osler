@@ -75,6 +75,7 @@ export function PortalLayout({
     ? [
         ['/professor', 'Visão geral', 'overview'],
         ['/professor/turmas', 'Minhas turmas', 'classes'],
+        ['/professor/materia', 'Matéria lecionada', 'cases'],
         ['/professor/casos', 'Casos clínicos', 'cases'],
         ['/professor/debriefings', 'Debriefings', 'debrief'],
       ]

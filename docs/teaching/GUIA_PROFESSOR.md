@@ -1,5 +1,7 @@
 # Osler — Sala de aula do professor
 
+> Atualização: aplique `20261031133010_self_selected_teacher_and_subject.sql`. Professores agora se cadastram livremente com Google, sem lista de aprovação. Escolher professor abre `/professor` diretamente. A aba **Matéria lecionada** salva a disciplina do docente. A formação continua sendo escolhida ao criar cada turma. As referências antigas à lista de autorização abaixo descrevem somente a implantação anterior; não são necessárias para o cadastro atual.
+
 ## Testar sem banco e sem instalar dependências
 
 Abra `preview-local/Osler_Demonstracao_Local.html` em um navegador atualizado. O arquivo contém a aplicação, estilos, logos e pacientes ilustrados. A navegação usa `#` e os dados ficam no armazenamento deste navegador. Não há conexão com Supabase, Google ou APIs externas na demonstração.

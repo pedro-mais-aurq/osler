@@ -351,6 +351,7 @@ export function loginLocal(
     }
     store.identities.push(user)
   }
+  user.role = role
   store.enrollments
     .filter((e) => e.email === normalized && e.status !== 'revoked')
     .forEach((e) => {
@@ -1000,4 +1001,13 @@ export function localSaveFeedback(sessionId: string, feedback: string) {
     s = store.sessions.find((s) => s.id === sessionId) ?? fail()
   s.feedback = feedback
   save(store)
+}
+
+export function localSetTeachingSubject(subject: string) {
+ const user = identity('teacher'), store = getStore()
+ if (!subject.trim() || subject.trim().length > 160) fail('Informe a matéria lecionada (até 160 caracteres).')
+ const stored = store.identities.find(item => item.userId === user.userId)!
+ stored.subject = subject.trim(); save(store)
+ window.dispatchEvent(new Event(portalChangeEvent))
+ return copy(stored)
 }

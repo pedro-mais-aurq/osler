@@ -14,7 +14,8 @@ export function AuthCallbackPage() {
         )
         return
       }
-      const result = await getPortalIdentity()
+      const destination = sessionStorage.getItem('osler.login.destination')
+      const result = await getPortalIdentity(destination === 'teacher' || destination === 'student' ? destination : undefined)
       if (!active) return
       if (!result.ok || !result.value) {
         setError(

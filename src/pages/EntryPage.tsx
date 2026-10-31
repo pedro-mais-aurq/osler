@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Icon } from '../components/Icon'
 import { isLocalMode } from '../lib/dataMode'
-import { signInWithGoogle } from '../services/teaching'
+import { signInWithGoogle, getPortalIdentity } from '../services/teaching'
 import { demoStudents, demoTeacher } from '../features/teaching/demoFixtures'
 import { loginLocal } from '../features/teaching/localStore'
 import { usePortal } from '../features/teaching/usePortal'
@@ -26,7 +26,11 @@ export function EntryPage() {
     setBusy(role)
     setError(null)
     try {
-      if (isLocalMode) {
+      if (!isLocalMode && portal.identity) {
+        const result = await getPortalIdentity(role)
+        if (!result.ok) throw new Error(result.message)
+        navigate(role === 'teacher' ? '/professor' : '/curso')
+      } else if (isLocalMode) {
         loginLocal(role === 'teacher' ? demoTeacher.email : email, role)
         navigate(role === 'teacher' ? '/professor' : course ? `/curso?curso=${course}` : '/curso')
       } else {
@@ -69,7 +73,7 @@ export function EntryPage() {
       </div>
       {(error || portal.error) && <div className="status-message status-error" role="alert"><p>{error || portal.error}</p></div>}
       <Link className="entry-demo-link" to="/demonstracao">Prefere conhecer primeiro? Experimente a demonstração <Icon name="diagonal" width="14" height="14" /></Link>
-      <div className="entry-privacy"><Icon name="shield" width="13" height="13" /> {isLocalMode ? 'Demonstração com dados fictícios. As alterações ficam neste navegador.' : 'Entre com sua conta Google para estudar em uma turma ou acessar casos públicos. O acesso docente é liberado pela instituição.'}</div>
+      <div className="entry-privacy"><Icon name="shield" width="13" height="13" /> {isLocalMode ? 'Demonstração com dados fictícios. As alterações ficam neste navegador.' : 'Entre com sua conta Google para estudar em uma turma ou acessar casos públicos. Escolha o perfil de professor para criar suas próprias turmas.'}</div>
     </section>
   </div>
 }

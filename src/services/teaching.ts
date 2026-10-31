@@ -51,12 +51,12 @@ async function run<T>(
   }
 }
 
-export async function getPortalIdentity(): Promise<
+export async function getPortalIdentity(selectedRole?: 'student' | 'teacher'): Promise<
   ServiceResult<PortalIdentity | null>
 > {
   if (isLocalMode) {
     try {
-      return { ok: true, value: local.localIdentity() }
+      return { ok: true, value: selectedRole ? local.loginLocal(local.localIdentity()!.email, selectedRole) : local.localIdentity() }
     } catch {
       return {
         ok: false,
@@ -75,7 +75,7 @@ export async function getPortalIdentity(): Promise<
       }
     if (!data.session || data.session.user.is_anonymous)
       return { ok: true, value: null }
-    return run(() => null, 'teaching_bootstrap')
+    return selectedRole ? run(() => null, 'select_portal_role', { p_role: selectedRole }) : run(() => null, 'teaching_bootstrap')
   } catch {
     return { ok: false, message: 'Não foi possível verificar sua sessão.' }
   }
@@ -229,3 +229,9 @@ export const saveTeacherFeedback = (sessionId: string, feedback: string) =>
 
 // Compile-time parity for both adapters.
 export type { TeacherWorkspace, StudentWorkspace }
+
+export async function saveTeachingSubject(subject: string) {
+  const result = await run(() => local.localSetTeachingSubject(subject), 'teaching_set_subject', { p_subject: subject })
+  if (result.ok) window.dispatchEvent(new Event(local.portalChangeEvent))
+  return result
+}

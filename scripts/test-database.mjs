@@ -444,7 +444,20 @@ try {
     'update private.teacher_allowlist set enabled=false where email=$1',
     [emails[0]],
   )
-  await assert.rejects(() => rpc(teacher, 'teaching_workspace'), /docente/)
+  assert((await rpc(teacher, 'teaching_workspace')).classrooms.length > 0, 'legacy teachers do not require an allowlist after self-selection rollout')
+  await assert.rejects(() => rpc(unverified, 'select_portal_role', ['teacher']), /Google/)
+  await assert.rejects(() => rpc(outsider, 'select_portal_role', ['admin']), /inválido/)
+  assert.equal((await rpc(outsider, 'select_portal_role', ['teacher'])).role, 'teacher')
+  assert.equal((await rpc(outsider, 'teaching_bootstrap')).role, 'teacher')
+  const selfClass = await rpc(outsider, 'teaching_save_classroom', [{name:'Turma livre',course:'nursing',term:'',description:''}, null])
+  assert((await rpc(outsider, 'teaching_workspace')).classrooms.some(c => c.id === selfClass))
+  assert(!(await rpc(teacher, 'teaching_workspace')).classrooms.some(c => c.id === selfClass))
+  assert.equal((await rpc(outsider, 'teaching_set_subject', ['Semiologia'])).subject, 'Semiologia')
+  assert.equal((await rpc(outsider, 'teaching_bootstrap')).subject, 'Semiologia')
+  await assert.rejects(() => rpc(outsider, 'teaching_set_subject', ['']), /matéria/)
+  assert.equal((await rpc(outsider, 'select_portal_role', ['student'])).role, 'student')
+  await assert.rejects(() => rpc(outsider, 'teaching_workspace'), /docente/)
+  console.log('PASS deliberate teacher enrollment, persistent subject, invalid/admin role rejection and classroom ownership isolation.')
   const security = await one(
     "select count(*)::int as missing from pg_tables where schemaname='public' and not rowsecurity",
   )

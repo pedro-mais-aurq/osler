@@ -9,6 +9,7 @@ export interface PortalIdentity {
   userId: string
   email: string
   displayName: string
+  subject?: string
   role: AppRole
 }
 
