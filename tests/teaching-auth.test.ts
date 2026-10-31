@@ -33,7 +33,7 @@ describe('contrato de autenticação e debrief docente', () => {
     expect(mocks.signInWithOAuth).toHaveBeenCalledWith({
       provider: 'google',
       options: {
-        redirectTo: new URL('/auth/callback', window.location.origin).href,
+        redirectTo: new URL(`${import.meta.env.BASE_URL}auth/callback`, window.location.origin).href,
         scopes: 'email profile',
         queryParams: { prompt: 'select_account' },
       },

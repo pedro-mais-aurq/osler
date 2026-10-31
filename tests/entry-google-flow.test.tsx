@@ -31,13 +31,13 @@ describe('entrada conectada com Google', () => {
     let complete: ((result: unknown) => void) | undefined
     mocks.login.mockReturnValue(new Promise(resolve => { complete = resolve }))
     open('/entrar?curso=clinical_analysis')
-    await user.dblClick(screen.getByRole('button', { name: /^Sou aluno/ }))
+    await user.dblClick(screen.getByRole('button', { name: /^Entrar com Google — aluno/ }))
     expect(mocks.login).toHaveBeenCalledTimes(1)
     expect(mocks.login).toHaveBeenCalledWith('student')
     expect(sessionStorage.getItem('osler.login.course')).toBe('clinical_analysis')
     complete?.({ ok: false, message: 'Tente novamente.' })
     expect(await screen.findByRole('alert')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /^Sou aluno/ }).hasAttribute('disabled')).toBe(false)
+    expect(screen.getByRole('button', { name: /^Entrar com Google — aluno/ }).hasAttribute('disabled')).toBe(false)
   })
 
   it('retoma a formação após o Google no painel, aguardando a escolha do aluno', async () => {
