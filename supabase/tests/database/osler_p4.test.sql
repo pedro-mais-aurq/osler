@@ -202,6 +202,10 @@ values
     '{"fixture": true, "clinical_content": false}'::jsonb
   );
 
+-- Transaction-only public fixtures for independent legacy engine checks.
+update public.clinical_cases set visibility = 'public'
+where slug like 'p4-%' and owner_teacher_id is null;
+
 insert into public.case_steps (
   id,
   case_id,

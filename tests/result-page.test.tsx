@@ -205,8 +205,8 @@ describe('ResultPage server-authoritative', () => {
       name: 'Refazer este caso',
     })
 
-    expect(retryLink.getAttribute('href')).toBe(`/simulacao?case=${caseId}`)
-    expect(screen.getByRole('link', { name: 'Voltar à seleção' })).toBeTruthy()
+    expect(retryLink.getAttribute('href')).toBe(`/simulacao?case=${caseId}&modo=publico`)
+    expect(screen.getByRole('link', { name: 'Ver casos públicos' })).toBeTruthy()
     expect(screen.getByText(/sem apagar a tentativa concluída/i)).toBeTruthy()
   })
 

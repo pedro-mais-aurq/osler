@@ -23,6 +23,7 @@ import type {
 
 export interface SimulationEngineProps {
   simulationCase: SimulationCase
+  assignmentId?: string | null
   onComplete: (result: MinimalSimulationResult) => void
 }
 
@@ -43,6 +44,7 @@ const initialRestartState: RestartState = {
 
 export function SimulationEngine({
   simulationCase,
+  assignmentId,
   onComplete,
 }: SimulationEngineProps) {
   const [state, dispatch] = useReducer(
@@ -56,7 +58,8 @@ export function SimulationEngine({
   )
   const requestInFlight = useRef(false)
   const completionSent = useRef(false)
-  const [restartState, setRestartState] = useState<RestartState>(initialRestartState)
+  const [restartState, setRestartState] =
+    useState<RestartState>(initialRestartState)
   const caseId = simulationCase.case.id
 
   function reportDevelopmentError(message: string, cause: unknown) {
@@ -98,13 +101,20 @@ export function SimulationEngine({
     dispatch({ type: 'sessionStartRequested' })
 
     try {
-      const result = await startOrResumeSimulationSession(caseId)
+      const result = await startOrResumeSimulationSession(caseId, assignmentId)
 
       if (!result.ok) {
-        reportDevelopmentError('Falha ao iniciar ou retomar sessão.', result.cause)
+        reportDevelopmentError(
+          'Falha ao iniciar ou retomar sessão.',
+          result.cause,
+        )
         dispatch({
           type: 'sessionStartFailed',
-          error: { scope: 'start', message: result.message, cause: result.cause },
+          error: {
+            scope: 'start',
+            message: result.message,
+            cause: result.cause,
+          },
         })
         return
       }
@@ -119,7 +129,8 @@ export function SimulationEngine({
           type: 'sessionStartFailed',
           error: {
             scope: 'start',
-            message: 'Não foi possível restaurar a etapa atual. Tente novamente.',
+            message:
+              'Não foi possível restaurar a etapa atual. Tente novamente.',
             cause: result.session,
           },
         })
@@ -145,7 +156,11 @@ export function SimulationEngine({
         return
       }
 
-      dispatch({ type: 'sessionRestored', session: result.session, currentStep })
+      dispatch({
+        type: 'sessionRestored',
+        session: result.session,
+        currentStep,
+      })
     } finally {
       requestInFlight.current = false
     }
@@ -191,7 +206,10 @@ export function SimulationEngine({
         abandonedSessionId,
         error: null,
       })
-      const startResult = await startOrResumeSimulationSession(caseId)
+      const startResult = await startOrResumeSimulationSession(
+        caseId,
+        assignmentId,
+      )
 
       if (!startResult.ok) {
         reportDevelopmentError(
@@ -201,7 +219,8 @@ export function SimulationEngine({
         setRestartState({
           phase: 'error',
           abandonedSessionId,
-          error: 'A tentativa anterior foi encerrada, mas a nova não pôde ser iniciada. Tente novamente.',
+          error:
+            'A tentativa anterior foi encerrada, mas a nova não pôde ser iniciada. Tente novamente.',
         })
         return
       }
@@ -210,7 +229,8 @@ export function SimulationEngine({
         setRestartState({
           phase: 'error',
           abandonedSessionId,
-          error: 'A nova tentativa retornou um formato inesperado. Tente novamente.',
+          error:
+            'A nova tentativa retornou um formato inesperado. Tente novamente.',
         })
         return
       }
@@ -233,7 +253,8 @@ export function SimulationEngine({
         setRestartState({
           phase: 'error',
           abandonedSessionId,
-          error: 'A nova tentativa foi criada, mas sua primeira etapa não pôde ser carregada. Tente novamente.',
+          error:
+            'A nova tentativa foi criada, mas sua primeira etapa não pôde ser carregada. Tente novamente.',
         })
         return
       }
@@ -280,7 +301,8 @@ export function SimulationEngine({
         type: 'advanceFailed',
         error: {
           scope: 'advance',
-          message: 'A conclusão não retornou uma sessão válida. Tente novamente.',
+          message:
+            'A conclusão não retornou uma sessão válida. Tente novamente.',
         },
       })
       return
@@ -443,7 +465,9 @@ export function SimulationEngine({
         <p className="eyebrow">Simulação</p>
         <h1 id="simulation-engine-title">Não foi possível abrir o caso</h1>
         <div className="status-message status-error" role="alert">
-          <p>{state.error?.message ?? 'O conteúdo deste caso está incompleto.'}</p>
+          <p>
+            {state.error?.message ?? 'O conteúdo deste caso está incompleto.'}
+          </p>
         </div>
       </section>
     )

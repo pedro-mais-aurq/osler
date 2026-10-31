@@ -21,8 +21,8 @@ select is(
       and routine.proname = 'get_simulation_debrief'
       and routine.proargtypes = '2950'::oidvector
   ),
-  true,
-  'P9 debrief RPC is security definer'
+  false,
+  'P9 debrief facade delegates to the checked private owner reader'
 );
 
 select ok(
@@ -135,6 +135,10 @@ values (
   'published',
   '{"fixture": true, "clinical_content": false}'::jsonb
 );
+
+-- Transaction-only public fixtures for independent legacy engine checks.
+update public.clinical_cases set visibility = 'public'
+where slug like 'p9-%' and owner_teacher_id is null;
 
 insert into public.case_truth_models (case_id, truth_model)
 values (
@@ -253,6 +257,9 @@ values
     }'::jsonb
   );
 
+-- Import historical test rows without a live owner JWT; restore authorization before assertions.
+alter table public.simulation_sessions disable trigger classroom_session_guard;
+alter table public.simulation_actions disable trigger classroom_action_guard;
 insert into public.simulation_sessions (
   id,
   user_id,
@@ -454,6 +461,9 @@ values
 update public.clinical_cases
 set status = 'archived'
 where id = 'b3000000-0000-4000-8000-000000000001';
+
+alter table public.simulation_sessions enable trigger classroom_session_guard;
+alter table public.simulation_actions enable trigger classroom_action_guard;
 
 set local role anon;
 set local request.jwt.claim.role = 'anon';

@@ -1,9 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { StepClassification } from '../../simulation/types'
-import {
-  debriefClassificationLabels,
-  isWellConducted,
-} from '../summary'
+import { debriefClassificationLabels, isWellConducted } from '../summary'
 import type {
   DebriefDecision,
   DebriefReference,
@@ -12,6 +9,7 @@ import type {
 
 interface DebriefViewProps {
   debrief: SimulationDebrief
+  assignmentId?: string | null
 }
 
 function classificationClass(classification: StepClassification): string {
@@ -61,7 +59,9 @@ function DecisionCard({ decision }: { decision: DebriefDecision }) {
       >
         <div className="debrief-decision-heading">
           <div>
-            <p className="debrief-step-label">Decisão · etapa {decision.position}</p>
+            <p className="debrief-step-label">
+              Decisão · etapa {decision.position}
+            </p>
             <h3>{decision.stepTitle ?? decision.stepKey}</h3>
           </div>
           <span className="debrief-score-delta">
@@ -122,13 +122,15 @@ function ReferenceItem({ reference }: { reference: DebriefReference }) {
         {reference.year ? ` · ${reference.year}` : ''}
       </span>
       {reference.verifiedOn ? (
-        <small>Fonte verificada em {formatVerifiedDate(reference.verifiedOn)}</small>
+        <small>
+          Fonte verificada em {formatVerifiedDate(reference.verifiedOn)}
+        </small>
       ) : null}
     </li>
   )
 }
 
-export function DebriefView({ debrief }: DebriefViewProps) {
+export function DebriefView({ debrief, assignmentId }: DebriefViewProps) {
   const wellConducted = debrief.decisions.filter((decision) =>
     isWellConducted(decision.classification),
   )
@@ -146,10 +148,15 @@ export function DebriefView({ debrief }: DebriefViewProps) {
             <h1 id="debrief-title">Debriefing da tentativa</h1>
             <p className="debrief-case-title">{debrief.caseTitle}</p>
           </div>
-          <span className="debrief-education-tag">Simulação educacional fictícia</span>
+          <span className="debrief-education-tag">
+            Simulação educacional fictícia
+          </span>
         </header>
 
-        <section className="debrief-objective" aria-labelledby="objective-title">
+        <section
+          className="debrief-objective"
+          aria-labelledby="objective-title"
+        >
           <h2 id="objective-title">Objetivo educacional</h2>
           <p>
             {debrief.educationalObjective ??
@@ -163,8 +170,9 @@ export function DebriefView({ debrief }: DebriefViewProps) {
             <h2 id="summary-title">Resumo da tentativa</h2>
           </div>
           <p className="debrief-summary-note">
-            As contagens descrevem somente as decisões avaliadas nesta tentativa;
-            não representam uma nota escolar ou competência profissional geral.
+            As contagens descrevem somente as decisões avaliadas nesta
+            tentativa; não representam uma nota escolar ou competência
+            profissional geral.
           </p>
           <dl className="debrief-summary-grid">
             <div>
@@ -194,7 +202,10 @@ export function DebriefView({ debrief }: DebriefViewProps) {
           </dl>
         </section>
 
-        <section className="debrief-categories" aria-labelledby="reflection-title">
+        <section
+          className="debrief-categories"
+          aria-labelledby="reflection-title"
+        >
           <div className="debrief-section-heading">
             <p className="debrief-section-number">02</p>
             <h2 id="reflection-title">Leitura pedagógica</h2>
@@ -217,7 +228,10 @@ export function DebriefView({ debrief }: DebriefViewProps) {
           </div>
         </section>
 
-        <section className="debrief-trajectory" aria-labelledby="trajectory-title">
+        <section
+          className="debrief-trajectory"
+          aria-labelledby="trajectory-title"
+        >
           <div className="debrief-section-heading">
             <p className="debrief-section-number">03</p>
             <div>
@@ -242,7 +256,10 @@ export function DebriefView({ debrief }: DebriefViewProps) {
           )}
         </section>
 
-        <section className="debrief-references" aria-labelledby="references-title">
+        <section
+          className="debrief-references"
+          aria-labelledby="references-title"
+        >
           <div className="debrief-section-heading">
             <p className="debrief-section-number">04</p>
             <div>
@@ -275,12 +292,15 @@ export function DebriefView({ debrief }: DebriefViewProps) {
           <div className="action-row">
             <Link
               className="primary-action"
-              to={`/simulacao?case=${encodeURIComponent(debrief.caseId)}`}
+              to={`/simulacao?case=${encodeURIComponent(debrief.caseId)}${assignmentId ? `&atividade=${encodeURIComponent(assignmentId)}` : '&modo=publico'}`}
             >
               Refazer este caso
             </Link>
-            <Link className="secondary-action" to="/curso">
-              Voltar à seleção
+            <Link
+              className="secondary-action"
+              to={assignmentId ? '/aluno' : '/casos-publicos'}
+            >
+              {assignmentId ? 'Voltar às minhas atividades' : 'Ver casos públicos'}
             </Link>
           </div>
         </footer>

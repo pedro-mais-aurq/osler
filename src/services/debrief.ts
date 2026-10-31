@@ -1,3 +1,5 @@
+import { isLocalMode } from '../lib/dataMode'
+import { localStudentDebrief } from '../features/teaching/localStore'
 import {
   isValidDebriefSessionId,
   parseSimulationDebrief,
@@ -25,6 +27,17 @@ function readErrorCode(value: unknown): string | null {
 export async function getSimulationDebrief(
   sessionId: string,
 ): Promise<SimulationDebriefResult> {
+  if (isLocalMode) {
+    try {
+      return { ok: true, debrief: localStudentDebrief(sessionId) }
+    } catch {
+      return {
+        ok: false,
+        reason: 'unavailable',
+        message: 'Este resultado não está disponível.',
+      }
+    }
+  }
   if (!isValidDebriefSessionId(sessionId)) {
     return {
       ok: false,

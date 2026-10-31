@@ -7,19 +7,26 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --mode development",
     "build": "tsc -b && vite build",
     "test": "vitest run",
     "typecheck": "tsc -b",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:local": "vite --mode demo",
+    "build:local": "tsc -b && vite build --mode demo",
+    "test:db:offline": "node scripts/test-database.mjs",
+    "dev:online": "vite --mode development",
+    "package:local": "npm run build:local && node scripts/package-local-preview.mjs",
+    "build:production": "node scripts/validate-production.mjs && npm run build"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.57.4",
+    "@supabase/supabase-js": "2.114.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.2"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.13",
     "@testing-library/react": "16.3.0",
     "@testing-library/user-event": "14.6.1",
     "@types/react": "^19.1.12",

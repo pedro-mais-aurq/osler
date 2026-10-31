@@ -90,6 +90,10 @@ values (
   '{"fixture": true, "clinical_content": false}'::jsonb
 );
 
+-- Transaction-only public fixtures for independent legacy engine checks.
+update public.clinical_cases set visibility = 'public'
+where slug like 'p10-%' and owner_teacher_id is null;
+
 insert into public.case_steps (
   id,
   case_id,
@@ -128,6 +132,9 @@ values (
   }'::jsonb
 );
 
+-- Import historical test rows without a live owner JWT; restore authorization before assertions.
+alter table public.simulation_sessions disable trigger classroom_session_guard;
+alter table public.simulation_actions disable trigger classroom_action_guard;
 insert into public.simulation_sessions (
   id,
   user_id,
@@ -159,6 +166,9 @@ values
     '2026-09-05 11:00:00+00',
     null
   );
+
+alter table public.simulation_sessions enable trigger classroom_session_guard;
+alter table public.simulation_actions enable trigger classroom_action_guard;
 
 set local role anon;
 set local request.jwt.claim.role = 'anon';

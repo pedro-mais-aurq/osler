@@ -112,5 +112,10 @@ export function ResultPage() {
     )
   }
 
-  return <DebriefView debrief={pageState.debrief} />
+  return (
+    <DebriefView
+      debrief={pageState.debrief}
+      assignmentId={searchParams.get('atividade')}
+    />
+  )
 }

@@ -1,3 +1,7 @@
+import { isLocalMode } from '../../../lib/dataMode'
+import neutralSvg from '../../../assets/patient-neutral.svg?raw'
+import femaleSvg from '../../../assets/patient-female-neutral.svg?raw'
+
 export const neutralPatientVisualRef = 'patients/patient-neutral.svg'
 export const femalePatientVisualRef = 'patients/patient-female-neutral.svg'
 
@@ -17,6 +21,8 @@ function isSafeRelativeAssetPath(value: string) {
 }
 
 function withBaseUrl(relativePath: string) {
+  if (isLocalMode)
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(relativePath === femalePatientVisualRef ? femaleSvg : neutralSvg)}`
   const baseUrl = import.meta.env.BASE_URL.endsWith('/')
     ? import.meta.env.BASE_URL
     : `${import.meta.env.BASE_URL}/`

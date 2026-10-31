@@ -20,6 +20,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
+      VITE_DATA_MODE: supabase
+      VITE_BASE_PATH: /${{ github.event.repository.name }}/
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
@@ -40,10 +43,13 @@ jobs:
         shell: bash
         run: |
           test -n "$VITE_SUPABASE_URL" || { echo "::error::Missing VITE_SUPABASE_URL secret"; exit 1; }
-          test -n "$VITE_SUPABASE_ANON_KEY" || { echo "::error::Missing VITE_SUPABASE_ANON_KEY secret"; exit 1; }
+          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY$VITE_SUPABASE_ANON_KEY" || { echo "::error::Missing Supabase public key secret"; exit 1; }
 
       - name: Test
         run: npm test
+
+      - name: Verify migrations offline
+        run: npm run test:db:offline
 
       - name: Typecheck
         run: npm run typecheck

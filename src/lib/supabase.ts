@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { isLocalMode } from './dataMode'
 
 export interface SupabaseConfiguration {
   url: string
@@ -12,7 +13,10 @@ interface ConfigurationResult {
 
 function readSupabaseConfiguration(): ConfigurationResult {
   const url = import.meta.env.VITE_SUPABASE_URL?.trim()
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim()
+  const anonKey = (
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    import.meta.env.VITE_SUPABASE_ANON_KEY
+  )?.trim()
 
   if (!url || !anonKey) {
     return {
@@ -46,12 +50,14 @@ const configuration = readSupabaseConfiguration()
 export const supabaseConfigurationError = configuration.error
 export const supabaseConfig = configuration.config
 
-export const supabase: SupabaseClient | null = supabaseConfig
-  ? createClient(supabaseConfig.url, supabaseConfig.anonKey, {
-      auth: {
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        persistSession: true,
-      },
-    })
-  : null
+export const supabase: SupabaseClient | null =
+  supabaseConfig && !isLocalMode
+    ? createClient(supabaseConfig.url, supabaseConfig.anonKey, {
+        auth: {
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          persistSession: true,
+          flowType: 'pkce',
+        },
+      })
+    : null

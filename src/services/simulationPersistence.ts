@@ -1,3 +1,6 @@
+import { isLocalMode } from '../lib/dataMode'
+import * as local from '../features/teaching/localStore'
+import { localResult } from './localAdapter'
 import {
   parseAbandonedSimulationSession,
   parseAdvanceSimulationResult,
@@ -38,27 +41,40 @@ function unavailable(message: string) {
 
 export async function startOrResumeSimulationSession(
   caseId: string,
+  assignmentId?: string | null,
 ): Promise<StartSimulationSessionResult> {
+  if (isLocalMode)
+    return localResult(() => local.localStart(caseId, assignmentId), 'session')
   if (!supabase) {
-    return unavailable('Não foi possível iniciar a simulação agora. Tente novamente.')
+    return unavailable(
+      'Não foi possível iniciar a simulação agora. Tente novamente.',
+    )
   }
 
   const { data, error } = await supabase.rpc(
     'start_or_resume_simulation_session',
-    { p_case_id: caseId },
+    {
+      p_case_id: caseId,
+      ...(assignmentId ? { p_assignment_id: assignmentId } : {}),
+    },
   )
 
   if (error) {
     return {
       ok: false,
-      message: 'Não foi possível iniciar ou retomar a simulação. Tente novamente.',
+      message:
+        'Não foi possível iniciar ou retomar a simulação. Tente novamente.',
       cause: error,
     }
   }
 
   const session = parseSimulationSessionSnapshot(data)
 
-  if (!session || session.caseId !== caseId || session.status !== 'in_progress') {
+  if (
+    !session ||
+    session.caseId !== caseId ||
+    session.status !== 'in_progress'
+  ) {
     return {
       ok: false,
       message: 'A sessão retornou um formato inesperado. Tente novamente.',
@@ -74,8 +90,15 @@ export async function recordSimulationDecision(
   stepId: string,
   optionId: string,
 ): Promise<RecordSimulationDecisionResult> {
+  if (isLocalMode)
+    return localResult(
+      () => local.localRecord(sessionId, stepId, optionId),
+      'decision',
+    )
   if (!supabase) {
-    return unavailable('Não foi possível registrar sua escolha. Tente novamente.')
+    return unavailable(
+      'Não foi possível registrar sua escolha. Tente novamente.',
+    )
   }
 
   const { data, error } = await supabase.rpc('record_simulation_decision', {
@@ -102,7 +125,8 @@ export async function recordSimulationDecision(
   ) {
     return {
       ok: false,
-      message: 'O registro da escolha retornou um formato inesperado. Tente novamente.',
+      message:
+        'O registro da escolha retornou um formato inesperado. Tente novamente.',
       cause: data,
     }
   }
@@ -114,6 +138,8 @@ export async function advanceSimulationSession(
   sessionId: string,
   stepId: string,
 ): Promise<AdvanceSimulationSessionResult> {
+  if (isLocalMode)
+    return localResult(() => local.localAdvance(sessionId, stepId), 'result')
   if (!supabase) {
     return unavailable('Não foi possível avançar esta etapa. Tente novamente.')
   }
@@ -151,8 +177,12 @@ export async function advanceSimulationSession(
 export async function abandonSimulationSession(
   sessionId: string,
 ): Promise<AbandonSimulationSessionResult> {
+  if (isLocalMode)
+    return localResult(() => local.localAbandon(sessionId), 'session')
   if (!supabase) {
-    return unavailable('Não foi possível reiniciar esta tentativa. Tente novamente.')
+    return unavailable(
+      'Não foi possível reiniciar esta tentativa. Tente novamente.',
+    )
   }
 
   const { data, error } = await supabase.rpc('abandon_simulation_session', {

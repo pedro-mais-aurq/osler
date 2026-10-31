@@ -11,7 +11,6 @@ import { EntryPage } from '../src/pages/EntryPage'
 import { NotFoundPage } from '../src/pages/NotFoundPage'
 import { ResultPage } from '../src/pages/ResultPage'
 import { SimulationPage } from '../src/pages/SimulationPage'
-import { TeacherUnavailablePage } from '../src/pages/TeacherUnavailablePage'
 
 const NodeAbortController = transferableAbortController().constructor
 Object.defineProperty(globalThis, 'AbortController', {
@@ -59,6 +58,11 @@ vi.mock('../src/services/simulationPersistence', () => ({
 
 vi.mock('../src/services/debrief', () => ({
   getSimulationDebrief: serviceMocks.getSimulationDebrief,
+}))
+
+vi.mock('../src/services/teaching', () => ({
+  getPortalIdentity: vi.fn().mockResolvedValue({ ok: true, value: null }),
+  getStudentWorkspace: vi.fn().mockResolvedValue({ ok: true, value: { assignments: [] } }),
 }))
 
 const session = {
@@ -167,8 +171,7 @@ function makeRecordedDecision(
 function renderFlow(initialEntry = '/') {
   const router = createMemoryRouter(
     [
-      { path: '/', element: <EntryPage /> },
-      { path: '/professor', element: <TeacherUnavailablePage /> },
+      { path: '/entrar', element: <EntryPage /> },
       { path: '/curso', element: <CourseSelectionPage /> },
       { path: '/simulacao', element: <SimulationPage /> },
       { path: '/resultado', element: <ResultPage /> },
@@ -315,84 +318,6 @@ beforeEach(() => {
   }))
 })
 
-describe('entrada e professor', () => {
-  it('abre o placeholder do professor sem criar identidade', async () => {
-    const user = userEvent.setup()
-    const router = renderFlow()
-
-    await user.click(screen.getByRole('link', { name: 'Sou professor' }))
-
-    expect(router.state.location.pathname).toBe('/professor')
-    expect(
-      screen.getByRole('heading', { name: 'Área do professor em desenvolvimento' }),
-    ).toBeTruthy()
-    expect(serviceMocks.ensureAnonymousStudentSession).not.toHaveBeenCalled()
-  })
-
-  it('encaminha estudante novo para a escolha de curso', async () => {
-    serviceMocks.ensureAnonymousStudentSession.mockResolvedValue({
-      ok: true,
-      session,
-      user: session.user,
-      created: true,
-    })
-    serviceMocks.getCurrentStudentCourse.mockResolvedValue({ ok: true, course: null })
-    const user = userEvent.setup()
-    const router = renderFlow()
-
-    await user.click(screen.getByRole('button', { name: 'Sou aluno' }))
-
-    await waitFor(() => expect(router.state.location.pathname).toBe('/curso'))
-  })
-
-  it('bloqueia operação concorrente durante clique duplo em Sou aluno', async () => {
-    let resolveAuth: ((value: unknown) => void) | undefined
-    serviceMocks.ensureAnonymousStudentSession.mockReturnValue(
-      new Promise((resolve) => {
-        resolveAuth = resolve
-      }),
-    )
-    serviceMocks.getCurrentStudentCourse.mockResolvedValue({ ok: true, course: null })
-    const user = userEvent.setup()
-    renderFlow()
-
-    await user.dblClick(screen.getByRole('button', { name: 'Sou aluno' }))
-
-    expect(serviceMocks.ensureAnonymousStudentSession).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('button', { name: 'Iniciando sessão…' })).toBeTruthy()
-
-    resolveAuth?.({ ok: true, session, user: session.user, created: true })
-    expect(await screen.findByRole('heading', { name: 'Escolha seu curso' })).toBeTruthy()
-  })
-
-  it('pula a escolha quando o curso já está persistido', async () => {
-    serviceMocks.ensureAnonymousStudentSession.mockResolvedValue({
-      ok: true,
-      session,
-      user: session.user,
-      created: false,
-    })
-    serviceMocks.getCurrentStudentCourse.mockResolvedValue({
-      ok: true,
-      course: 'clinical_analysis',
-    })
-    serviceMocks.getCurrentStudent.mockResolvedValue({
-      ok: true,
-      student: {
-        userId: session.user.id,
-        role: 'student',
-        course: 'clinical_analysis',
-      },
-    })
-    const user = userEvent.setup()
-    const router = renderFlow()
-
-    await user.click(screen.getByRole('button', { name: 'Sou aluno' }))
-
-    await waitFor(() => expect(router.state.location.pathname).toBe('/simulacao'))
-  })
-})
-
 describe('seleção de curso', () => {
   it('redireciona acesso direto sem autenticação para a entrada', async () => {
     serviceMocks.getCurrentStudent.mockResolvedValue({
@@ -402,7 +327,7 @@ describe('seleção de curso', () => {
     })
     const router = renderFlow('/curso')
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/entrar'))
   })
 
   it('persiste Enfermagem uma única vez durante clique duplo', async () => {
@@ -426,7 +351,7 @@ describe('seleção de curso', () => {
     expect(serviceMocks.updateCurrentStudentCourse).toHaveBeenCalledWith('nursing')
 
     resolveUpdate?.({ ok: true, course: 'nursing' })
-    await waitFor(() => expect(router.state.location.pathname).toBe('/simulacao'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/participacao'))
   })
 
   it('persiste Análises Clínicas e segue para o handoff', async () => {
@@ -450,7 +375,7 @@ describe('seleção de curso', () => {
     expect(serviceMocks.updateCurrentStudentCourse).toHaveBeenCalledWith(
       'clinical_analysis',
     )
-    await waitFor(() => expect(router.state.location.pathname).toBe('/simulacao'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/participacao'))
   })
 })
 
@@ -463,7 +388,7 @@ describe('handoff da simulação', () => {
     })
     const router = renderFlow('/simulacao')
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/entrar'))
   })
 
   it('redireciona estudante sem curso para a seleção', async () => {
@@ -574,6 +499,7 @@ describe('fatia vertical da simulação', () => {
 
     expect(serviceMocks.startOrResumeSimulationSession).toHaveBeenCalledWith(
       nursingCase.id,
+      null,
     )
     expect(serviceMocks.recordSimulationDecision).toHaveBeenCalledWith(
       simulationSessionId,
@@ -683,7 +609,7 @@ describe('resultado e cabeçalho', () => {
     expect(serviceMocks.getSimulationDebrief).not.toHaveBeenCalled()
   })
 
-  it('oculta a navegação de desenvolvimento apenas na entrada', async () => {
+  it('oferece navegação pública e contextual sem expor rótulos de desenvolvimento', async () => {
     const router = createMemoryRouter(
       [
         {
@@ -699,17 +625,20 @@ describe('resultado e cabeçalho', () => {
     )
     render(<RouterProvider router={router} />)
 
-    expect(screen.queryByRole('navigation', { name: 'Navegação principal' })).toBeNull()
-    const logo = screen.getByRole('link', { name: 'OSLER — ir para a entrada' }).querySelector('img')
+    expect(screen.getByRole('navigation', { name: 'Navegação principal' })).toBeTruthy()
+    expect(screen.getAllByRole('link', { name: 'Como funciona' })[0].getAttribute('href')).toBe('/#como-funciona')
+    const logo = screen.getByRole('link', { name: 'OSLER — página inicial' }).querySelector('img')
     expect(logo?.className).toBe('brand-logo')
     expect(logo?.getAttribute('style')).toBeNull()
-    expect(screen.getByText('MVP · Parte 10/10')).toBeTruthy()
+    expect(screen.queryByText('MVP · Parte 10/10')).toBeNull()
 
     await router.navigate('/simulacao')
     await waitFor(() =>
       expect(
-        screen.getByRole('navigation', { name: 'Navegação principal' }),
+        screen.getByRole('link', { name: 'Minha formação' }),
       ).toBeTruthy(),
     )
+    expect(screen.getByRole('link', { name: 'Minha formação' }).getAttribute('href')).toBe('/curso')
+    expect(screen.getByText('Ambiente educacional')).toBeTruthy()
   })
 })

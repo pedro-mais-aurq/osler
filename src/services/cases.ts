@@ -1,3 +1,6 @@
+import { isLocalMode } from '../lib/dataMode'
+import * as local from '../features/teaching/localStore'
+import { localResult } from './localAdapter'
 import {
   parseCaseStep,
   parseCaseSummary,
@@ -82,6 +85,11 @@ async function getPublishedCaseByIdForCourse(
 export async function getFirstPublishedCaseForCourse(
   course: StudentCourse,
 ): Promise<CaseLookupResult> {
+  if (isLocalMode)
+    return localResult(
+      () => local.localResolveCase(course, null),
+      'resolved',
+    ).then((r) => (r.ok ? { ok: true as const, case: r.resolved.case } : r))
   if (!supabase) {
     return unavailableResult(supabaseConfigurationError)
   }
@@ -115,8 +123,16 @@ export async function resolvePublishedCaseForCourse(
   course: StudentCourse,
   requestedCaseId: string | null,
 ): Promise<CaseResolutionResult> {
+  if (isLocalMode)
+    return localResult(
+      () => local.localResolveCase(course, requestedCaseId),
+      'resolved',
+    ).then((r) => (r.ok ? { ok: true as const, ...r.resolved } : r))
   if (requestedCaseId && uuidPattern.test(requestedCaseId)) {
-    const requestedCase = await getPublishedCaseByIdForCourse(requestedCaseId, course)
+    const requestedCase = await getPublishedCaseByIdForCourse(
+      requestedCaseId,
+      course,
+    )
 
     if (!requestedCase.ok) {
       return requestedCase
@@ -148,6 +164,11 @@ export async function getSimulationCase(
   caseId: string,
   course: StudentCourse,
 ): Promise<SimulationCaseResult> {
+  if (isLocalMode)
+    return localResult(
+      () => local.localSimulationCase(caseId, course),
+      'simulationCase',
+    )
   if (!supabase) {
     return {
       ok: false,
@@ -211,7 +232,8 @@ export async function getSimulationCase(
   ) {
     return {
       ok: false,
-      message: 'O conteúdo deste caso está incompleto. Tente outro caso mais tarde.',
+      message:
+        'O conteúdo deste caso está incompleto. Tente outro caso mais tarde.',
       cause:
         patientResult.error ??
         firstStepResult.error ??
@@ -233,6 +255,8 @@ export async function getVisibleCaseStepByKey(
   caseId: string,
   stepKey: string,
 ): Promise<VisibleCaseStepResult> {
+  if (isLocalMode)
+    return localResult(() => local.localVisibleStep(caseId, stepKey), 'step')
   if (!supabase) {
     return {
       ok: false,
@@ -269,10 +293,14 @@ export async function getVisibleCaseStepByKey(
     }
   }
 
-  if (parsedStep.value.caseId !== caseId || parsedStep.value.stepKey !== stepKey) {
+  if (
+    parsedStep.value.caseId !== caseId ||
+    parsedStep.value.stepKey !== stepKey
+  ) {
     return {
       ok: false,
-      message: 'A próxima etapa retornou um formato inesperado. Tente novamente.',
+      message:
+        'A próxima etapa retornou um formato inesperado. Tente novamente.',
       cause: data,
     }
   }

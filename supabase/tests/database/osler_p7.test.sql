@@ -184,7 +184,7 @@ reset role;
 -- Transaction-only publication for architectural QA. Rollback at the end keeps
 -- the authored candidate in draft and does not represent scientific approval.
 update public.clinical_cases
-set status = 'published'
+set status = 'published', visibility = 'public'
 where id = '70000000-0000-4000-8000-000000000002';
 
 set local role authenticated;

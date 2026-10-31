@@ -1,26 +1,9 @@
-import { createBrowserRouter } from 'react-router-dom'
-import { App } from './App'
-import { CourseSelectionPage } from '../pages/CourseSelectionPage'
-import { EntryPage } from '../pages/EntryPage'
-import { NotFoundPage } from '../pages/NotFoundPage'
-import { ResultPage } from '../pages/ResultPage'
-import { SimulationPage } from '../pages/SimulationPage'
-import { TeacherUnavailablePage } from '../pages/TeacherUnavailablePage'
+import { createBrowserRouter, createHashRouter } from 'react-router-dom'
+import { appRoutes } from './routes'
+import { isLocalMode } from '../lib/dataMode'
 
-export const router = createBrowserRouter(
-  [
-    {
-      path: '/',
-      element: <App />,
-      children: [
-        { index: true, element: <EntryPage /> },
-        { path: 'professor', element: <TeacherUnavailablePage /> },
-        { path: 'curso', element: <CourseSelectionPage /> },
-        { path: 'simulacao', element: <SimulationPage /> },
-        { path: 'resultado', element: <ResultPage /> },
-        { path: '*', element: <NotFoundPage /> },
-      ],
-    },
-  ],
-  { basename: import.meta.env.BASE_URL },
+// Hash routing also lets the complete local build open directly from disk.
+export const router = (isLocalMode ? createHashRouter : createBrowserRouter)(
+  appRoutes,
+  { basename: isLocalMode ? '/' : import.meta.env.BASE_URL },
 )

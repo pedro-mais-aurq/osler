@@ -107,8 +107,8 @@ select is(
     'private.resolve_simulation_transition_internal(uuid, uuid, text)',
     'execute'
   ),
-  true,
-  'authenticated can reach the private implementation only through an allowed schema'
+  false,
+  'authenticated cannot bypass the checked legacy transition facade'
 );
 
 select has_function(
@@ -199,6 +199,10 @@ values
     'draft',
     '{"fixture": true, "clinical_content": false}'::jsonb
   );
+
+-- Transaction-only public fixtures for independent legacy engine checks.
+update public.clinical_cases set visibility = 'public'
+where slug like 'p5-%' and owner_teacher_id is null;
 
 insert into public.case_truth_models (case_id, truth_model)
 values (

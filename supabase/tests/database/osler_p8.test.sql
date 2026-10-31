@@ -8,7 +8,7 @@ select no_plan();
 select has_function(
   'public',
   'start_or_resume_simulation_session',
-  array['uuid'],
+  array['uuid','uuid'],
   'P8 exposes start/resume RPC'
 );
 select has_function(
@@ -37,8 +37,8 @@ select is(
       )
       and routine.prosecdef
   ),
-  3,
-  'all P8 RPCs are security definer'
+  2,
+  'record and advance stay definers; classroom start is an invoker facade'
 );
 
 select is(
@@ -61,7 +61,7 @@ select is(
 select ok(
   not has_function_privilege(
     'anon',
-    'public.start_or_resume_simulation_session(uuid)',
+    'public.start_or_resume_simulation_session(uuid,uuid)',
     'execute'
   )
   and not has_function_privilege(
@@ -80,7 +80,7 @@ select ok(
 select ok(
   has_function_privilege(
     'authenticated',
-    'public.start_or_resume_simulation_session(uuid)',
+    'public.start_or_resume_simulation_session(uuid,uuid)',
     'execute'
   )
   and has_function_privilege(
@@ -134,7 +134,7 @@ select is(
 select has_index(
   'public',
   'simulation_sessions',
-  'simulation_sessions_one_active_per_user_case_idx',
+  'simulation_sessions_one_active_per_activity_idx',
   'one active session per user and case is enforced'
 );
 select has_index(
@@ -216,6 +216,10 @@ values
     'published',
     '{"fixture": true, "clinical_content": false}'::jsonb
   );
+
+-- Transaction-only public fixtures for independent legacy engine checks.
+update public.clinical_cases set visibility = 'public'
+where slug like 'p8-%' and owner_teacher_id is null;
 
 insert into public.case_truth_models (case_id, truth_model)
 values (
@@ -379,6 +383,9 @@ values
     }}}'::jsonb
   );
 
+-- Import historical test rows without a live owner JWT; restore authorization before assertions.
+alter table public.simulation_sessions disable trigger classroom_session_guard;
+alter table public.simulation_actions disable trigger classroom_action_guard;
 insert into public.simulation_sessions (
   id,
   user_id,
@@ -419,6 +426,9 @@ values (
   }'::jsonb,
   2
 );
+
+alter table public.simulation_sessions enable trigger classroom_session_guard;
+alter table public.simulation_actions enable trigger classroom_action_guard;
 
 set local role anon;
 set local request.jwt.claim.role = 'anon';

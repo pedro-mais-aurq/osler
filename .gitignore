@@ -1,12 +1,14 @@
 # Dependencies and generated output
 node_modules/
 dist/
+preview-local/
 *.local
 
 # Local environment files and secrets
 .env
 .env.*
 !.env.example
+!.env.demo
 
 # Logs and editor files
 *.log

@@ -168,9 +168,11 @@ select throws_ok(
 );
 
 update public.clinical_cases
-set status = 'published'
+set status = 'published', visibility = 'public'
 where id = '00000000-0000-4000-8000-000000000002';
 
+-- Administrative setup for the two session owners.
+alter table public.simulation_sessions disable trigger classroom_session_guard;
 insert into public.simulation_sessions (id, user_id, case_id)
 values (
   'bbbbbbbb-0000-4000-8000-000000000001',
@@ -190,6 +192,8 @@ values (
   '00000000-0000-4000-8000-000000000002',
   '00000000-0000-4000-8000-000000000004'
 );
+
+alter table public.simulation_sessions enable trigger classroom_session_guard;
 
 set local role authenticated;
 set local request.jwt.claim.sub = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';

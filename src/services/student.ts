@@ -1,3 +1,5 @@
+import { isLocalMode } from '../lib/dataMode'
+import { localStudent, localSetCourse } from '../features/teaching/localStore'
 import { supabase, supabaseConfigurationError } from '../lib/supabase'
 import type { AppRole, StudentCourse, StudentIdentity } from '../types/database'
 import { getCurrentSession } from './auth'
@@ -37,6 +39,17 @@ function wait(delayMs: number): Promise<void> {
 }
 
 export async function getCurrentStudent(): Promise<StudentResult> {
+  if (isLocalMode) {
+    try {
+      return { ok: true, student: localStudent() }
+    } catch (error) {
+      return {
+        ok: false,
+        reason: 'not_authenticated',
+        message: error instanceof Error ? error.message : 'Entre como aluno.',
+      }
+    }
+  }
   if (!supabase) {
     return {
       ok: false,
@@ -73,15 +86,24 @@ export async function getCurrentStudent(): Promise<StudentResult> {
     }
 
     const [profileResult, studentResult] = await Promise.all([
-      supabase.from('profiles').select('user_id, role').eq('user_id', userId).maybeSingle(),
-      supabase.from('students').select('user_id, course').eq('user_id', userId).maybeSingle(),
+      supabase
+        .from('profiles')
+        .select('user_id, role')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      supabase
+        .from('students')
+        .select('user_id, course')
+        .eq('user_id', userId)
+        .maybeSingle(),
     ])
 
     if (profileResult.error || studentResult.error) {
       return {
         ok: false,
         reason: 'query_failed',
-        message: 'Não foi possível carregar seu perfil de estudante. Tente novamente.',
+        message:
+          'Não foi possível carregar seu perfil de estudante. Tente novamente.',
         cause: profileResult.error ?? studentResult.error,
       }
     }
@@ -128,7 +150,8 @@ export async function getCurrentStudent(): Promise<StudentResult> {
   return {
     ok: false,
     reason: 'student_not_found',
-    message: 'Seu perfil de estudante ainda não está disponível. Tente novamente.',
+    message:
+      'Seu perfil de estudante ainda não está disponível. Tente novamente.',
   }
 }
 
@@ -145,6 +168,17 @@ export async function getCurrentStudentCourse(): Promise<StudentCourseResult> {
 export async function updateCurrentStudentCourse(
   course: StudentCourse,
 ): Promise<StudentCourseResult> {
+  if (isLocalMode) {
+    try {
+      return { ok: true, course: localSetCourse(course) }
+    } catch {
+      return {
+        ok: false,
+        reason: 'not_authenticated',
+        message: 'Entre como aluno.',
+      }
+    }
+  }
   if (!supabase) {
     return {
       ok: false,
