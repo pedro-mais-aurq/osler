@@ -264,7 +264,10 @@
   padding: 80px var(--n-gutter) 145px;
   overflow: clip;
   color: var(--n-paper);
-  background: var(--n-dark);
+  background-image: linear-gradient(180deg, rgb(0, 0, 0, 0.6), rgb(0, 0, 0, 0.7)), url(../public/images/osler_campus.png);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
 }
 
 .n-hero-copy {

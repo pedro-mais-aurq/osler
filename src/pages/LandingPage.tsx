@@ -36,8 +36,7 @@ export function LandingPage() {
             <Link className="n-text-link n-link-light" to="/demonstracao">Conhecer a experiência <Icon name="arrow" /></Link>
           </div>
         </div>
-        <div className="n-hero-emblem" aria-hidden="true"><span className="n-emblem-ring" /><img src={OslerSymbol} alt="" width="290" height="330" /><span>CONHECIMENTO + HUMANIDADE</span></div>
-        <Link className="n-hero-corner" to="/#sala-de-aula"><span className="n-seal"><Icon name="book" width="26" height="26" /></span><span>CONHECIMENTO.<br />PRÁTICA. HUMANIDADE.</span><span className="n-scroll-arrow" aria-hidden="true">↓</span></Link>
+    
       </section>
 
       <section className="n-classroom" id="sala-de-aula" aria-labelledby="classroom-title">
