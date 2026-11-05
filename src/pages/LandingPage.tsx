@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom'
 import { Icon } from '../components/Icon'
 import { FormationExplorer } from '../features/landing/FormationExplorer'
 import { useNeresMotion } from '../features/landing/useNeresMotion'
-import OslerSymbol from '../assets/osler_logo_unica.svg'
 
 const learningSteps = [
   { label: 'Observar', title: 'O aprendizado começa pelo olhar.', text: 'Conheça a pessoa, leia o contexto e perceba as informações que dão sentido ao cenário. Antes da primeira escolha, existe uma história para compreender.', word: 'CONTEXTO', sheet: 'Toda pessoa tem uma história.', detail: 'Conhecer antes de agir.', icon: 'user' as const },
