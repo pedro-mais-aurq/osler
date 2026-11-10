@@ -1,24 +1,8 @@
 import type { DebriefReference } from '../debrief/types'
-import type { AuthorOption, AuthorStep, CaseDraft } from './types'
+import { decision, information, option, referenceText } from './caseContent'
+import type { CaseDraft } from './types'
 
 export const extendedDemoPack = 'osler-two-complete-cases-v1'
-
-function information(key: string, title: string, body: string, observations: string[]): AuthorStep {
-  return { key, title, body, observations, type: 'information', presentationState: 'stable', options: [] }
-}
-
-function decision(key: string, title: string, body: string, observations: string[], options: AuthorOption[]): AuthorStep {
-  return { key, title, body, observations, options, type: 'decision', presentationState: 'warning' }
-}
-
-function option(id: string, label: string, classification: AuthorOption['classification'], feedback: string, consequence: string): AuthorOption {
-  return {
-    id, label, classification, feedback, consequence,
-    scoreDelta: { ideal: 2, acceptable: 1, needs_improvement: 0, unsafe: -1 }[classification],
-    presentationState: classification === 'ideal' ? 'recovery' : classification === 'unsafe' ? 'critical' : 'warning',
-    nextStepKey: 'next',
-  }
-}
 
 const nursingReferences: DebriefReference[] = [
   {
@@ -45,10 +29,6 @@ const laboratoryReferences: DebriefReference[] = [
     url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC5242477/', verifiedOn: '2026-10-30',
   },
 ]
-
-function referenceText(references: DebriefReference[]): string {
-  return 'Roteiro fictício de demonstração. Revisão clínica e pedagógica independente pendente.\n' + references.map(reference => `${reference.authority}. ${reference.title} (${reference.year}). ${reference.url}`).join('\n')
-}
 
 export function medicationSafetyCase(): CaseDraft {
   return {

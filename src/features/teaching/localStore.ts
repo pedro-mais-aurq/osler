@@ -29,7 +29,7 @@ import type {
   TeachingCase,
 } from './types'
 import { normalizeEmail, validEmail, validateDraft } from './validation'
-import { extendedDemoCaseDefinitions, extendedDemoPack } from './extendedDemoCases'
+import { practiceCaseDefinitions, practiceCasePacks } from './practiceCasePacks'
 
 export const localStoreKey = 'osler.classroom.demo.v1'
 const identityKey = 'osler.classroom.identity.v1'
@@ -133,11 +133,14 @@ function transitionFor(
   }
 }
 
-function addExtendedDemoCases(store: LocalStore): boolean {
-  if (store.contentPacks?.includes(extendedDemoPack)) return false
+function addPracticeCasePacks(store: LocalStore): boolean {
+  const installedPacks = store.contentPacks ?? []
+  const pendingPacks = practiceCasePacks.filter(pack => !installedPacks.includes(pack.id))
+  if (pendingPacks.length === 0) return false
+
   const createdAt = now()
-  for (const definition of extendedDemoCaseDefinitions) {
-    const draft = definition.createDraft()
+  for (const definition of pendingPacks.flatMap(pack => pack.definitions)) {
+    const draft: CaseDraft = { ...definition.createDraft(), visibility: 'public' }
     // Fixed content identities make the upgrade idempotent. Existing edits,
     // archived resources, decisions and teacher feedback are never replaced.
     if (!store.cases.some(item => item.id === definition.caseId)) {
@@ -149,7 +152,7 @@ function addExtendedDemoCases(store: LocalStore): boolean {
       store.assignments.push({ id: definition.assignmentId, classroomId: classroom.id, caseId: definition.caseId, title: definition.assignmentTitle, dueAt: null, status: 'open', createdAt })
     }
   }
-  store.contentPacks = [...(store.contentPacks ?? []), extendedDemoPack]
+  store.contentPacks = [...installedPacks, ...pendingPacks.map(pack => pack.id)]
   return true
 }
 
@@ -157,7 +160,7 @@ function addParticipationDefaults(store: LocalStore): boolean {
   let changed = false
   for (const item of store.cases) {
     if (item.draft.visibility === undefined) {
-      item.draft.visibility = extendedDemoCaseDefinitions.some(definition => definition.caseId === item.id) ? 'public' : 'private'
+      item.draft.visibility = practiceCaseDefinitions.some(definition => definition.caseId === item.id) ? 'public' : 'private'
       changed = true
     }
   }
@@ -293,7 +296,7 @@ function seed(): LocalStore {
     })
     store.sessions.push(session)
   }
-  addExtendedDemoCases(store)
+  addPracticeCasePacks(store)
   addParticipationDefaults(store)
   return store
 }
@@ -303,7 +306,7 @@ function getStore(): LocalStore {
     try {
       const parsed = JSON.parse(raw) as LocalStore
       if (parsed.version === 1 && Array.isArray(parsed.sessions)) {
-        const addedCases = addExtendedDemoCases(parsed)
+        const addedCases = addPracticeCasePacks(parsed)
         const addedParticipation = addParticipationDefaults(parsed)
         if (addedCases || addedParticipation) save(parsed)
         return parsed
@@ -964,7 +967,7 @@ function debriefFor(store: LocalStore, s: LocalAttempt): SimulationDebrief {
       },
     },
     decisions,
-    references: extendedDemoCaseDefinitions.find(definition => definition.caseId === c.id)?.references ?? (c.draft.reference.trim()
+    references: practiceCaseDefinitions.find(definition => definition.caseId === c.id)?.references ?? (c.draft.reference.trim()
       ? [
           {
             id: 'referencia-docente',

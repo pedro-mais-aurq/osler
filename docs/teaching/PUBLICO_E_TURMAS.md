@@ -25,7 +25,7 @@ Uma atividade usa `/simulacao?case=ID&atividade=ID`, com tentativas próprias e 
 
 ## Demonstração e implantação
 
-Na demonstração local, os dois novos casos de sete etapas são públicos: **Medicação segura: identificação e alergias** e **Amostra hemolisada: qualidade antes do resultado**. Um e-mail fictício novo permite testar o caminho sem turma. As contas de aluno já existentes mantêm seus vínculos. Os roteiros são demonstrações técnicas e exigem revisão docente antes de publicação no ambiente conectado.
+Na demonstração local, cada curso tem quatro casos públicos, incluindo três roteiros de 12 etapas e nove decisões. Um e-mail fictício novo permite testar o caminho sem turma. As contas de aluno já existentes mantêm seus vínculos. Os roteiros aparecem em **Professor → Casos clínicos → Roteiros para adaptar** e passam por revisão docente antes da publicação no ambiente conectado.
 
 A migration `20261030231749_public_cases_and_optional_classrooms.sql`, após a de gestão docente, acrescenta o campo de visibilidade, os códigos privados, as RPCs de catálogo e entrada e as restrições nas sessões e decisões. O frontend não aplica migrations. Nenhum banco online foi alterado nesta entrega.
 

@@ -54,7 +54,7 @@ describe('seleção e execução dos novos cenários', () => {
     const router = createMemoryRouter(appRoutes, { initialEntries: ['/professor/casos'] })
     routers.push(router)
     render(<RouterProvider router={router} />)
-    await user.click(await screen.findByRole('button', { name: 'Usar roteiro de Enfermagem' }))
+    await user.click(await screen.findByRole('button', { name: 'Usar roteiro: ' + extendedDemoCaseDefinitions[0].createDraft().title }))
     expect(await screen.findByRole('heading', { name: 'Novo caso clínico' })).toBeTruthy()
     expect((screen.getByLabelText('Título do caso') as HTMLInputElement).value).toBe(extendedDemoCaseDefinitions[0].createDraft().title)
     await user.click(screen.getByRole('button', { name: 'Salvar rascunho' }))

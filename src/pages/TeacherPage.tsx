@@ -25,7 +25,7 @@ import {
 } from '../features/teaching/TeacherForms'
 import { CaseEditor } from '../features/teaching/CaseEditor'
 import { TeacherDebriefView } from '../features/teaching/TeacherDebriefView'
-import { extendedDemoCaseDefinitions } from '../features/teaching/extendedDemoCases'
+import { practiceCaseDefinitions } from '../features/teaching/practiceCasePacks'
 import { ClassroomJoinCode } from '../features/teaching/ClassroomJoinCode'
 
 type Modal =
@@ -649,12 +649,20 @@ export function TeacherPage() {
           <section className="case-starters teaching-panel" aria-labelledby="case-starters-title">
             <h2 id="case-starters-title">Roteiros para adaptar</h2>
             <p>Abra uma cópia para adaptar à sua turma e salvar como rascunho.</p>
-            <div className="case-starter-grid">{extendedDemoCaseDefinitions.map(definition => {
+            <div className="case-starter-grid">{practiceCaseDefinitions.map(definition => {
               const draft = definition.createDraft()
+              const decisionCount = draft.steps.filter(step => step.type === 'decision').length
               return <article key={definition.caseId}>
-                <p className="eyebrow">{courseLabels[draft.course]} · 7 etapas · 5 decisões</p>
+                <p className="eyebrow">{courseLabels[draft.course]} · {draft.steps.length} etapas · {decisionCount} decisões</p>
                 <h3>{draft.title}</h3>
-                <button className="secondary-action" type="button" onClick={() => navigate('/professor/casos/novo', { state: { draft } })}>Usar roteiro de {draft.course === 'nursing' ? 'Enfermagem' : 'Análises Clínicas'} <Icon name="arrow" size={16} /></button>
+                <button
+                  className="secondary-action"
+                  type="button"
+                  aria-label={`Usar roteiro: ${draft.title}`}
+                  onClick={() => navigate('/professor/casos/novo', { state: { draft } })}
+                >
+                  Usar roteiro <Icon name="arrow" size={16} />
+                </button>
               </article>
             })}</div>
           </section>

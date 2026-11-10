@@ -17,7 +17,14 @@ Na página inicial, use **Começar a aprender** ou **Acessar plataforma**. Em **
 
 Após entrar como aluno, escolha Enfermagem ou Análises Clínicas e, em **Como você quer aprender?**, decida entre **Entrar em uma turma** e **Praticar sem turma**. A turma aceita o código fornecido pelo professor ou o convite por e-mail já cadastrado. O caminho individual abre **Casos públicos**, sem exigir matrícula. Trocar de formação mantém a identidade do aluno. É possível alternar os caminhos depois, preservando os vínculos e o histórico.
 
-Cada formação agora oferece dois casos na demonstração. Os novos cenários **Medicação segura: identificação e alergias** e **Amostra hemolisada: qualidade antes do resultado** têm sete etapas e cinco decisões cada. Os dois novos casos estão publicados como públicos na demonstração; os anteriores ficam nas atividades de turma. Os roteiros também estão disponíveis para adaptação no painel do professor. A atualização preserva os dados já existentes. Veja o [roteiro das etapas e as referências](docs/cases/two-complete-cases.md).
+Cada formação oferece quatro casos públicos e cinco atividades na turma de demonstração. Os seis cenários mais recentes têm 12 etapas, nove decisões com feedback e consequências, e referências no debriefing. A atualização preserva os casos, vínculos e tentativas já existentes no navegador.
+
+| Formação | Novos casos |
+| --- | --- |
+| Enfermagem | Deterioração respiratória no pós-operatório, Hipoglicemia na enfermaria, Queda não presenciada na enfermaria |
+| Análises Clínicas | Hemoculturas positivas no plantão, Coagulação com tubo de citrato abaixo do volume, Falha no controle interno de glicose |
+
+Em **Professor → Casos clínicos → Roteiros para adaptar**, os seis roteiros podem ser abertos e salvos como rascunho. No ambiente conectado, o professor revisa o conteúdo e escolhe a visibilidade antes de publicar.
 
 A demonstração guiada de interface permanece em `/demonstracao`; as atividades acessadas pelo aluno usam o motor completo, persistem decisões e produzem debriefing. A navegação preserva os identificadores de caso, atividade e tentativa, inclusive ao refazer um caso ou reabrir seu resultado.
 

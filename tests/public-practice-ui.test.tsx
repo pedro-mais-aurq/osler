@@ -8,7 +8,8 @@ vi.mock('../src/lib/dataMode', () => ({ isLocalMode: true }))
 import { appRoutes } from '../src/app/routes'
 import * as local from '../src/features/teaching/localStore'
 import { demoTeacher, demoStudents } from '../src/features/teaching/demoFixtures'
-import { extendedDemoCaseDefinitions } from '../src/features/teaching/extendedDemoCases'
+import { respiratoryDeterioration } from '../src/features/teaching/practiceCases/respiratoryDeterioration'
+import { positiveBloodCultures } from '../src/features/teaching/practiceCases/positiveBloodCultures'
 
 Object.defineProperty(globalThis, 'AbortController', { configurable: true, value: transferableAbortController().constructor })
 const routers: ReturnType<typeof createMemoryRouter>[] = []
@@ -24,7 +25,7 @@ afterEach(() => { cleanup(); routers.splice(0).forEach(router => router.dispose(
 describe('entrada opcional em turma e prática pública', () => {
   it('percorre o acesso sem turma, conclui um caso público e reencontra seu debriefing no histórico individual', async () => {
     const user = userEvent.setup()
-    const definition = extendedDemoCaseDefinitions[0], draft = definition.createDraft()
+    const definition = respiratoryDeterioration, draft = definition.createDraft()
     const router = open('/entrar')
     const email = await screen.findByRole('combobox', { name: 'E-mail do aluno para experimentar' })
     await user.clear(email)
@@ -74,14 +75,16 @@ describe('entrada opcional em turma e prática pública', () => {
     const user = userEvent.setup()
     local.loginLocal(demoTeacher.email, 'teacher')
     open('/professor/casos')
-    await user.click(await screen.findByRole('button', { name: 'Usar roteiro de Enfermagem' }))
+    const draft = positiveBloodCultures.createDraft()
+    await user.click(await screen.findByRole('button', { name: 'Usar roteiro: ' + draft.title }))
     const visibility = await screen.findByRole('combobox', { name: 'Visibilidade do caso' })
     expect((visibility as HTMLSelectElement).value).toBe('private')
     await user.selectOptions(visibility, 'public')
     await user.click(screen.getByRole('button', { name: 'Salvar rascunho' }))
     expect(await screen.findByText('Rascunho salvo.')).toBeTruthy()
     const saved = local.localTeacherWorkspace().cases.find(item => item.status === 'draft' && item.draft.visibility === 'public')
-    expect(saved?.draft.steps).toHaveLength(7)
+    expect(saved?.draft.title).toBe(draft.title)
+    expect(saved?.draft.steps).toHaveLength(12)
   })
 
   it('não inicia um caso privado pelo caminho de prática individual mesmo que o aluno pertença à turma', async () => {

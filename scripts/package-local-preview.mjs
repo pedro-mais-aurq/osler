@@ -10,6 +10,13 @@ assert(jsPath && cssPath, 'Execute npm run build:local antes de empacotar.')
 let js = await readFile(path.join('dist', jsPath.replace(/^\//, '')), 'utf8')
 let css = await readFile(path.join('dist', cssPath.replace(/^\//, '')), 'utf8')
 const mime = { '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.woff': 'font/woff', '.woff2': 'font/woff2' }
+
+function embedQuotedUrl(source, url, data) {
+  return source
+    .replaceAll(`"${url}"`, `"${data}"`)
+    .replaceAll(`'${url}'`, `'${data}'`)
+}
+
 async function embed(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const filename = path.join(directory, entry.name)
@@ -19,9 +26,10 @@ async function embed(directory) {
     const url = '/' + path.relative('dist', filename).split(path.sep).join('/')
     if (!js.includes(url) && !css.includes(url) && !html.includes(url)) continue
     const data = `data:${type};base64,${(await readFile(filename)).toString('base64')}`
-    js = js.replaceAll(url, data)
-    css = css.replaceAll(url, data)
-    html = html.replaceAll(url, data)
+    // Match whole URLs so a path like ../../public/images/photo.webp stays intact.
+    js = embedQuotedUrl(js, url, data)
+    css = embedQuotedUrl(css, url, data).replaceAll(`url(${url})`, `url(${data})`)
+    html = embedQuotedUrl(html, url, data)
   }
 }
 await embed('dist')
